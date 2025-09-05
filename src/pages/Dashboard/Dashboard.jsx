@@ -19,7 +19,7 @@ import {
   TrendingUp,
   UserPlus,
   MessageSquare,
-} from 'lucide-react';
+} from "lucide-react";
 
 const Dashboard = () => {
   const { currentUser, logout, getUserData } = useAuth();
@@ -33,12 +33,12 @@ const Dashboard = () => {
     totalGroups: 0,
     totalMessages: 0,
     onlineMembers: 0,
-    recentActivity: 0
+    recentActivity: 0,
   });
   const [statsHistory, setStatsHistory] = useState({
     groupsLastWeek: 0,
     messagesYesterday: 0,
-    activityLastHour: 0
+    activityLastHour: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -53,25 +53,28 @@ const Dashboard = () => {
       }
 
       try {
-        console.log('Setting loading to true and fetching dashboard data');
+        console.log("Setting loading to true and fetching dashboard data");
         setLoading(true);
-        
-        // Set basic user data immediately 
+
+        // Set basic user data immediately
         const basicUserData = {
-          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+          displayName:
+            currentUser.displayName ||
+            currentUser.email?.split("@")[0] ||
+            "User",
           email: currentUser.email,
           photoURL: currentUser.photoURL,
           uid: currentUser.uid,
-          isOnline: true
+          isOnline: true,
         };
-        
+
         setUserData(basicUserData);
-        console.log('Basic user data set:', basicUserData);
+        console.log("Basic user data set:", basicUserData);
 
         // Fetch user's groups
         const userGroups = await crewConnectService.getUserCrews();
         setUserGroups(userGroups);
-        console.log('User groups fetched:', userGroups);
+        console.log("User groups fetched:", userGroups);
 
         // Fetch pending invitations and recent messages in parallel
         const [invitationsResult, ...messageResults] = await Promise.allSettled([
@@ -129,28 +132,33 @@ const Dashboard = () => {
         const sortedMessages = recentMessages
           .sort((a, b) => b.timestamp - a.timestamp)
           .slice(0, 10);
-        
+
         setRecentMessages(sortedMessages);
-        console.log('Recent messages fetched:', sortedMessages);
+        console.log("Recent messages fetched:", sortedMessages);
 
         // Calculate real stats
         const totalMessages = recentMessages.length;
         let onlineMembers = 1; // At least the current user
         let recentActivity = 0;
-        
+
         // Count online members and recent activity from groups
         for (const group of userGroups) {
           try {
             const members = await crewConnectService.getCrewMembers(group.id);
-            onlineMembers += members.filter(member => 
-              member.isOnline && member.uid !== currentUser.uid
+            onlineMembers += members.filter(
+              (member) => member.isOnline && member.uid !== currentUser.uid
             ).length;
-            
+
             // Count recent activity (messages in last 24 hours)
-            const groupMessages = await crewConnectService.getCrewMessages(group.id, 50);
+            const groupMessages = await crewConnectService.getCrewMessages(
+              group.id,
+              50
+            );
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-            const recentGroupActivity = groupMessages.filter(msg => {
-              const msgDate = msg.sentAt?.toDate ? msg.sentAt.toDate() : new Date(msg.sentAt);
+            const recentGroupActivity = groupMessages.filter((msg) => {
+              const msgDate = msg.sentAt?.toDate
+                ? msg.sentAt.toDate()
+                : new Date(msg.sentAt);
               return msgDate > oneDayAgo;
             }).length;
             recentActivity += recentGroupActivity;
@@ -158,23 +166,22 @@ const Dashboard = () => {
             console.warn(`Failed to fetch data for group ${group.id}:`, error);
           }
         }
-        
+
         setStats({
           totalGroups: userGroups.length,
           totalMessages: totalMessages,
           onlineMembers: Math.max(1, onlineMembers), // At least 1 (current user)
-          recentActivity: recentActivity
+          recentActivity: recentActivity,
         });
-        
-        console.log('Dashboard stats calculated:', {
+
+        console.log("Dashboard stats calculated:", {
           totalGroups: userGroups.length,
           totalMessages: totalMessages,
           onlineMembers: Math.max(1, onlineMembers),
-          recentActivity: recentActivity
+          recentActivity: recentActivity,
         });
-        
       } catch (error) {
-        console.error('Error in dashboard data fetch:', error);
+        console.error("Error in dashboard data fetch:", error);
         // Set fallback data on error
         setUserGroups([]);
         setRecentMessages([]);
@@ -182,10 +189,10 @@ const Dashboard = () => {
           totalGroups: 0,
           totalMessages: 0,
           onlineMembers: 1,
-          recentActivity: 0
+          recentActivity: 0,
         });
       } finally {
-        console.log('Setting loading to false');
+        console.log("Setting loading to false");
         setLoading(false);
       }
     };
@@ -223,57 +230,59 @@ const Dashboard = () => {
     });
 
     return () => {
-      console.log('Cleaning up invitation listener');
+      console.log("Cleaning up invitation listener");
       unsubscribe();
     };
   }, [currentUser?.uid]);
 
   const handleLogout = async () => {
     try {
-      console.log('Logging out...');
+      console.log("Logging out...");
       await logout();
-      console.log('Logout successful, navigating to login');
-      navigate('/login', { replace: true });
+      console.log("Logout successful, navigating to login");
+      navigate("/login", { replace: true });
     } catch (error) {
-      console.error('Failed to logout:', error);
+      console.error("Failed to logout:", error);
       // Force navigation even if logout fails
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
     }
   };
 
   const quickActions = useMemo(() => [
     {
-      title: 'Create Group',
-      description: 'Start a new group chat',
+      title: "Create Group",
+      description: "Start a new group chat",
       icon: Plus,
-      color: 'from-blue-500 to-blue-600',
-      onClick: () => navigate('/groups')
+      color: "from-blue-500 to-blue-600",
+      onClick: () => navigate("/groups"),
     },
     {
-      title: 'Join Group',
-      description: 'Find and join existing groups',
+      title: "Join Group",
+      description: "Find and join existing groups",
       icon: UserPlus,
-      color: 'from-green-500 to-green-600',
-      onClick: () => navigate('/discover')
+      color: "from-green-500 to-green-600",
+      onClick: () => navigate("/discover"),
     },
     {
-      title: 'Invitations',
-      description: `Manage group invitations${pendingInvitations > 0 ? ` (${pendingInvitations} pending)` : ''}`,
+      title: "Invitations",
+      description: `Manage group invitations${
+        pendingInvitations > 0 ? ` (${pendingInvitations} pending)` : ""
+      }`,
       icon: User,
-      color: 'from-orange-500 to-orange-600',
-      onClick: () => navigate('/invitations'),
-      badge: pendingInvitations > 0 ? pendingInvitations : null
+      color: "from-orange-500 to-orange-600",
+      onClick: () => navigate("/invitations"),
+      badge: pendingInvitations > 0 ? pendingInvitations : null,
     },
     {
-      title: 'Start Chat',
-      description: 'Begin a conversation',
+      title: "Start Chat",
+      description: "Begin a conversation",
       icon: MessageSquare,
-      color: 'from-purple-500 to-purple-600',
-      onClick: () => navigate('/chat')
+      color: "from-purple-500 to-purple-600",
+      onClick: () => navigate("/chat"),
     },
     {
-      title: 'Settings',
-      description: 'Manage your account',
+      title: "Settings",
+      description: "Manage your account",
       icon: Settings,
       color: 'from-orange-500 to-orange-600',
       onClick: () => navigate('/settings')
@@ -282,52 +291,54 @@ const Dashboard = () => {
 
   const getGroupsTrend = () => {
     const newGroups = stats.totalGroups - statsHistory.groupsLastWeek;
-    return newGroups > 0 ? `+${newGroups} this week` : 'No new groups';
+    return newGroups > 0 ? `+${newGroups} this week` : "No new groups";
   };
 
   const getMessagesTrend = () => {
     const newMessages = stats.totalMessages - statsHistory.messagesYesterday;
-    return newMessages > 0 ? `+${newMessages} recent` : 'No recent messages';
+    return newMessages > 0 ? `+${newMessages} recent` : "No recent messages";
   };
 
   const getActivityTrend = () => {
     const newActivity = stats.recentActivity - statsHistory.activityLastHour;
-    return stats.recentActivity > 0 ? `${stats.recentActivity} today` : 'No recent activity';
+    return stats.recentActivity > 0
+      ? `${stats.recentActivity} today`
+      : "No recent activity";
   };
 
   const statCards = [
     {
-      title: 'Total Groups',
+      title: "Total Groups",
       value: stats.totalGroups,
       icon: Users,
-      color: 'text-blue-500',
-      bg: 'bg-blue-500/10',
-      trend: getGroupsTrend()
+      color: "text-blue-500",
+      bg: "bg-blue-500/10",
+      trend: getGroupsTrend(),
     },
     {
-      title: 'Messages Sent',
+      title: "Messages Sent",
       value: stats.totalMessages,
       icon: MessageCircle,
-      color: 'text-green-500',
-      bg: 'bg-green-500/10',
-      trend: getMessagesTrend()
+      color: "text-green-500",
+      bg: "bg-green-500/10",
+      trend: getMessagesTrend(),
     },
     {
-      title: 'Online Members',
+      title: "Online Members",
       value: stats.onlineMembers,
       icon: Activity,
-      color: 'text-purple-500',
-      bg: 'bg-purple-500/10',
-      trend: 'Active now'
+      color: "text-purple-500",
+      bg: "bg-purple-500/10",
+      trend: "Active now",
     },
     {
-      title: 'Recent Activity',
+      title: "Recent Activity",
       value: stats.recentActivity,
       icon: TrendingUp,
-      color: 'text-orange-500',
-      bg: 'bg-orange-500/10',
-      trend: getActivityTrend()
-    }
+      color: "text-orange-500",
+      bg: "bg-orange-500/10",
+      trend: getActivityTrend(),
+    },
   ];
 
   if (loading || !userData) {
@@ -352,7 +363,7 @@ const Dashboard = () => {
                 CrewConnect
               </h1>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -362,9 +373,9 @@ const Dashboard = () => {
                   className="bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64"
                 />
               </div>
-              
+
               <NotificationDropdown />
-              
+
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
                   {userData?.photoURL ? (
@@ -378,7 +389,9 @@ const Dashboard = () => {
                   )}
                 </div>
                 <span className="text-white font-medium">
-                  {userData?.displayName || currentUser?.email}
+                  <a href="/profile">
+                    {userData?.displayName || currentUser?.email}
+                  </a>
                 </span>
                 <button
                   onClick={handleLogout}
@@ -397,7 +410,11 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
-            Welcome back, {userData?.displayName || currentUser?.email?.split('@')[0] || 'User'}!
+            Welcome back,{" "}
+            {userData?.displayName ||
+              currentUser?.email?.split("@")[0] ||
+              "User"}
+            !
           </h2>
           <p className="text-gray-400">
             Here's what's happening with your groups and conversations.
@@ -413,8 +430,12 @@ const Dashboard = () => {
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm font-medium">{stat.title}</p>
-                  <p className="text-2xl font-bold text-white mt-1">{stat.value}</p>
+                  <p className="text-gray-400 text-sm font-medium">
+                    {stat.title}
+                  </p>
+                  <p className="text-2xl font-bold text-white mt-1">
+                    {stat.value}
+                  </p>
                   <p className="text-xs text-gray-500 mt-1">{stat.trend}</p>
                 </div>
                 <div className={`p-3 rounded-xl ${stat.bg}`}>
@@ -427,7 +448,9 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <h3 className="text-xl font-semibold text-white mb-4">Quick Actions</h3>
+          <h3 className="text-xl font-semibold text-white mb-4">
+            Quick Actions
+          </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {quickActions.map((action, index) => (
               <button
@@ -437,13 +460,17 @@ const Dashboard = () => {
               >
                 {action.badge && (
                   <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
-                    {action.badge > 99 ? '99+' : action.badge}
+                    {action.badge > 99 ? "99+" : action.badge}
                   </div>
                 )}
-                <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}>
+                <div
+                  className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}
+                >
                   <action.icon className="w-6 h-6 text-white" />
                 </div>
-                <h4 className="text-white font-semibold mb-2">{action.title}</h4>
+                <h4 className="text-white font-semibold mb-2">
+                  {action.title}
+                </h4>
                 <p className="text-gray-400 text-sm">{action.description}</p>
               </button>
             ))}
@@ -460,8 +487,8 @@ const Dashboard = () => {
             <div className="space-y-4">
               {recentMessages.length > 0 ? (
                 recentMessages.map((groupData, index) => (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     className="flex items-center space-x-3 p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
                     onClick={() => navigate(`/chat/${groupData.groupId}`)}
                   >
@@ -469,14 +496,19 @@ const Dashboard = () => {
                       <MessageCircle className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1">
-                      <p className="text-white text-sm font-medium">{groupData.groupName}</p>
+                      <p className="text-white text-sm font-medium">
+                        {groupData.groupName}
+                      </p>
                       <p className="text-gray-400 text-xs truncate max-w-48">
-                        {groupData.lastMessage?.sender?.displayName}: {groupData.lastMessage?.content || 'No messages yet'}
+                        {groupData.lastMessage?.sender?.displayName}:{" "}
+                        {groupData.lastMessage?.content || "No messages yet"}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
-                      <p className="text-gray-500 text-xs mt-1">{groupData.onlineCount} online</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        {groupData.onlineCount} online
+                      </p>
                     </div>
                   </div>
                 ))
@@ -484,8 +516,8 @@ const Dashboard = () => {
                 <div className="text-center py-8">
                   <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
                   <p className="text-gray-400 text-sm">No recent messages</p>
-                  <button 
-                    onClick={() => navigate('/groups')}
+                  <button
+                    onClick={() => navigate("/groups")}
                     className="mt-2 text-blue-400 hover:text-blue-300 text-sm underline"
                   >
                     Join a group to start chatting
@@ -503,37 +535,42 @@ const Dashboard = () => {
             <div className="space-y-4">
               {userGroups.length > 0 ? (
                 userGroups.slice(0, 3).map((group, index) => (
-                  <div 
-                    key={group.id} 
+                  <div
+                    key={group.id}
                     className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
                     onClick={() => navigate(`/chat/${group.id}`)}
                   >
                     <div className="flex items-center space-x-3">
                       <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full flex items-center justify-center">
-                        {group.membership?.role === 'admin' ? (
+                        {group.membership?.role === "admin" ? (
                           <Shield className="w-5 h-5 text-white" />
                         ) : (
                           <Users className="w-5 h-5 text-white" />
                         )}
                       </div>
                       <div>
-                        <p className="text-white text-sm font-medium">{group.name}</p>
+                        <p className="text-white text-sm font-medium">
+                          {group.name}
+                        </p>
                         <p className="text-gray-400 text-xs">
-                          {group.membership?.role} • {group.description?.substring(0, 30)}...
+                          {group.membership?.role} •{" "}
+                          {group.description?.substring(0, 30)}...
                         </p>
                       </div>
                     </div>
                     <span className="text-xs text-green-400">
-                      {group.isPublic ? 'Public' : 'Private'}
+                      {group.isPublic ? "Public" : "Private"}
                     </span>
                   </div>
                 ))
               ) : (
                 <div className="text-center py-8">
                   <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                  <p className="text-gray-400 text-sm">You haven't joined any groups yet</p>
-                  <button 
-                    onClick={() => navigate('/groups')}
+                  <p className="text-gray-400 text-sm">
+                    You haven't joined any groups yet
+                  </p>
+                  <button
+                    onClick={() => navigate("/groups")}
                     className="mt-2 text-blue-400 hover:text-blue-300 text-sm underline"
                   >
                     Browse groups to join

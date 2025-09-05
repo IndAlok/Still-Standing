@@ -14,6 +14,7 @@ import Notifications from "./pages/Notifications/Notifications";
 import LandingPage from "./pages/LandingPage/landing";
 import InvitationManager from "./components/InvitationManager/InvitationManager";
 import Discover from "./pages/Discover/Discover";
+import UserProfilePage from "./pages/Profile/ProfilePage";
 
 function App() {
   return (
@@ -31,14 +32,6 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <Profile />
                 </ProtectedRoute>
               }
             />
@@ -93,6 +86,7 @@ function App() {
 
             {/* Default redirect */}
             <Route path="/" element={<LandingPage />} />
+            <Route path="/profile" element={<UserProfilePage />} />
             {/* <Route path="*" element={<Navigate to="/dashboard" />} /> */}
           </Routes>
         </div>
