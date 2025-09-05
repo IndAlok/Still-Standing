@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import ProfilePictureUpload from '../../components/ProfilePictureUpload';
@@ -31,6 +31,19 @@ const Profile = () => {
     photoURL: ''
   });
   const [message, setMessage] = useState('');
+
+  // Input handlers to prevent focus loss
+  const handleDisplayNameChange = useCallback((e) => {
+    setEditForm(prev => ({ ...prev, displayName: e.target.value }));
+  }, []);
+
+  const handleBioChange = useCallback((e) => {
+    setEditForm(prev => ({ ...prev, bio: e.target.value }));
+  }, []);
+
+  const handleLocationChange = useCallback((e) => {
+    setEditForm(prev => ({ ...prev, location: e.target.value }));
+  }, []);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -209,7 +222,7 @@ const Profile = () => {
                     <input
                       type="text"
                       value={editForm.displayName}
-                      onChange={(e) => setEditForm({ ...editForm, displayName: e.target.value })}
+                      onChange={handleDisplayNameChange}
                       className="text-2xl font-bold bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                       placeholder="Display Name"
                     />
@@ -243,7 +256,7 @@ const Profile = () => {
                         <label className="block text-sm font-medium text-gray-300 mb-1">Bio</label>
                         <textarea
                           value={editForm.bio}
-                          onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                          onChange={handleBioChange}
                           rows={3}
                           className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
                           placeholder="Tell us about yourself..."
@@ -255,7 +268,7 @@ const Profile = () => {
                         <input
                           type="text"
                           value={editForm.location}
-                          onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+                          onChange={handleLocationChange}
                           className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                           placeholder="Where are you based?"
                         />

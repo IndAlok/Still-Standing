@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Users,
   Target,
@@ -13,14 +15,23 @@ import {
 export default function LandingPage() {
   const [isVisible, setIsVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     setIsVisible(true);
+    
+    // Redirect if already logged in
+    if (currentUser) {
+      navigate('/dashboard');
+      return;
+    }
+    
     const interval = setInterval(() => {
       setActiveFeature((prev) => (prev + 1) % 4);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUser, navigate]);
 
   const features = [
     {
@@ -74,7 +85,10 @@ export default function LandingPage() {
             ConnectCrew
           </span>
         </div>
-        <button className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full hover:shadow-lg hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105">
+        <button 
+          onClick={() => navigate('/register')}
+          className="px-6 py-2 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-full hover:shadow-lg hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105"
+        >
           Get Started
         </button>
       </nav>
@@ -111,13 +125,19 @@ export default function LandingPage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2">
+                <button 
+                  onClick={() => navigate('/register')}
+                  className="group px-8 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-semibold text-lg hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-2"
+                >
                   <span>Start Matching Now</span>
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
-                <button className="group px-8 py-4 border-2 border-white/20 rounded-2xl font-semibold text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center space-x-2">
+                <button 
+                  onClick={() => navigate('/login')}
+                  className="group px-8 py-4 border-2 border-white/20 rounded-2xl font-semibold text-lg hover:bg-white/10 transition-all duration-300 flex items-center justify-center space-x-2"
+                >
                   <Play className="w-5 h-5" />
-                  <span>Watch Demo</span>
+                  <span>Sign In</span>
                 </button>
               </div>
 
@@ -261,7 +281,10 @@ export default function LandingPage() {
               found their perfect teammates. Your next great collaboration is
               just one click away.
             </p>
-            <button className="group px-12 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-bold text-xl hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-3 mx-auto">
+            <button 
+              onClick={() => navigate('/register')}
+              className="group px-12 py-4 bg-gradient-to-r from-cyan-500 to-purple-600 rounded-2xl font-bold text-xl hover:shadow-2xl hover:shadow-purple-500/25 transition-all duration-300 transform hover:scale-105 flex items-center justify-center space-x-3 mx-auto"
+            >
               <span>Start Your Journey</span>
               <ArrowRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
             </button>

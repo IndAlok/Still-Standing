@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
@@ -33,6 +33,11 @@ const Chat = () => {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [showMembers, setShowMembers] = useState(false);
+
+  // Input handler to prevent focus loss
+  const handleMessageChange = useCallback((e) => {
+    setMessage(e.target.value);
+  }, []);
 
   useEffect(() => {
     if (!groupId) {
@@ -305,7 +310,7 @@ const Chat = () => {
             <input
               type="text"
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={handleMessageChange}
               placeholder={`Message #${groupInfo?.name}`}
               disabled={sending}
               className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"

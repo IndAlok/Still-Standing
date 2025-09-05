@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import {
@@ -37,6 +37,67 @@ const Settings = () => {
     confirmPassword: ''
   });
 
+  // Individual handlers to prevent focus loss
+  const handleCurrentPasswordChange = useCallback((e) => {
+    setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }));
+  }, []);
+
+  const handleNewPasswordChange = useCallback((e) => {
+    setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }));
+  }, []);
+
+  const handleConfirmPasswordChange = useCallback((e) => {
+    setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }));
+  }, []);
+
+  // Notification settings handlers
+  const handleNotificationSettingChange = useCallback((key) => (e) => {
+    setNotificationSettings(prev => ({ ...prev, [key]: e.target.checked }));
+  }, []);
+
+  // Appearance settings handlers  
+  const handleThemeChange = useCallback((theme) => {
+    setAppearanceSettings(prev => ({ ...prev, theme }));
+  }, []);
+
+  const handleFontSizeChange = useCallback((e) => {
+    setAppearanceSettings(prev => ({ ...prev, fontSize: e.target.value }));
+  }, []);
+
+  // Privacy settings handlers
+  const handlePrivacySettingChange = useCallback((key, value) => {
+    setPrivacySettings(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const handleProfileVisibilityChange = useCallback((e) => {
+    handlePrivacySettingChange('profileVisibility', e.target.value);
+  }, [handlePrivacySettingChange]);
+
+  const handleDataCollectionChange = useCallback((e) => {
+    handlePrivacySettingChange('dataCollection', e.target.checked);
+  }, [handlePrivacySettingChange]);
+
+  const handleActivityStatusChange = useCallback((e) => {
+    handlePrivacySettingChange('activityStatus', e.target.checked);
+  }, [handlePrivacySettingChange]);
+
+  const handleFriendRequestsChange = useCallback((e) => {
+    handlePrivacySettingChange('friendRequests', e.target.checked);
+  }, [handlePrivacySettingChange]);
+
+  // Language settings handlers
+  const handleLanguageChange = useCallback((e) => {
+    setLanguageSettings(prev => ({ ...prev, language: e.target.value }));
+  }, []);
+
+  const handleTimezoneChange = useCallback((e) => {
+    setLanguageSettings(prev => ({ ...prev, timezone: e.target.value }));
+  }, []);
+
+  const handleDateFormatChange = useCallback((e) => {
+    setLanguageSettings(prev => ({ ...prev, dateFormat: e.target.value }));
+  }, []);
+
   const [notificationSettings, setNotificationSettings] = useState({
     emailNotifications: true,
     pushNotifications: true,
@@ -53,11 +114,19 @@ const Settings = () => {
     compactMode: false
   });
 
+  const [languageSettings, setLanguageSettings] = useState({
+    language: 'en',
+    timezone: 'auto',
+    dateFormat: 'MM/DD/YYYY'
+  });
+
   const [privacySettings, setPrivacySettings] = useState({
     profileVisibility: 'public',
     lastSeenVisibility: 'everyone',
     messageReceipts: true,
-    activityStatus: true
+    activityStatus: true,
+    dataCollection: true,
+    friendRequests: true
   });
 
   const handlePasswordChange = async (e) => {
@@ -166,7 +235,7 @@ const Settings = () => {
               <input
                 type={showCurrentPassword ? 'text' : 'password'}
                 value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                onChange={handleCurrentPasswordChange}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 pr-10 text-white"
                 required
               />
@@ -186,7 +255,7 @@ const Settings = () => {
               <input
                 type={showNewPassword ? 'text' : 'password'}
                 value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                onChange={handleNewPasswordChange}
                 className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 pr-10 text-white"
                 required
               />
@@ -205,7 +274,7 @@ const Settings = () => {
             <input
               type="password"
               value={passwordForm.confirmPassword}
-              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+              onChange={handleConfirmPasswordChange}
               className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
               required
             />
@@ -244,7 +313,7 @@ const Settings = () => {
                 <input
                   type="checkbox"
                   checked={value}
-                  onChange={(e) => setNotificationSettings({ ...notificationSettings, [key]: e.target.checked })}
+                  onChange={handleNotificationSettingChange(key)}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
@@ -256,32 +325,205 @@ const Settings = () => {
     </div>
   );
 
+  const PrivacySettings = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white mb-6">Privacy Settings</h2>
+      
+      <div className="space-y-4">
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Profile Visibility</h3>
+          <div className="space-y-3">
+            <label className="flex items-center space-x-3">
+              <input 
+                type="radio" 
+                name="profileVisibility" 
+                value="public" 
+                className="text-blue-600" 
+                checked={privacySettings.profileVisibility === 'public'}
+                onChange={handleProfileVisibilityChange}
+              />
+              <span className="text-white">Public - Anyone can see your profile</span>
+            </label>
+            <label className="flex items-center space-x-3">
+              <input 
+                type="radio" 
+                name="profileVisibility" 
+                value="friends" 
+                className="text-blue-600"
+                checked={privacySettings.profileVisibility === 'friends'}
+                onChange={handleProfileVisibilityChange}
+              />
+              <span className="text-white">Friends only</span>
+            </label>
+            <label className="flex items-center space-x-3">
+              <input 
+                type="radio" 
+                name="profileVisibility" 
+                value="private" 
+                className="text-blue-600"
+                checked={privacySettings.profileVisibility === 'private'}
+                onChange={handleProfileVisibilityChange}
+              />
+              <span className="text-white">Private</span>
+            </label>
+          </div>
+        </div>
+        
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Data & Privacy</h3>
+          <div className="space-y-3">
+            <label className="flex items-center justify-between">
+              <span className="text-white">Allow data collection for analytics</span>
+              <input 
+                type="checkbox" 
+                className="toggle-checkbox" 
+                checked={privacySettings.dataCollection}
+                onChange={handleDataCollectionChange}
+              />
+            </label>
+            <label className="flex items-center justify-between">
+              <span className="text-white">Share activity status</span>
+              <input 
+                type="checkbox" 
+                className="toggle-checkbox" 
+                checked={privacySettings.activityStatus}
+                onChange={handleActivityStatusChange}
+              />
+            </label>
+            <label className="flex items-center justify-between">
+              <span className="text-white">Allow friend requests</span>
+              <input 
+                type="checkbox" 
+                className="toggle-checkbox" 
+                checked={privacySettings.friendRequests}
+                onChange={handleFriendRequestsChange}
+              />
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const LanguageSettings = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white mb-6">Language & Region</h2>
+      
+      <div className="space-y-4">
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Language</h3>
+          <select 
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
+            value={languageSettings.language}
+            onChange={handleLanguageChange}
+          >
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
+        
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Time Zone</h3>
+          <select 
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
+            value={languageSettings.timezone}
+            onChange={handleTimezoneChange}
+          >
+            <option value="auto">Auto-detect</option>
+            <option value="UTC">UTC</option>
+            <option value="EST">Eastern Time</option>
+            <option value="PST">Pacific Time</option>
+            <option value="GMT">Greenwich Mean Time</option>
+          </select>
+        </div>
+        
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Date Format</h3>
+          <select 
+            className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
+            value={languageSettings.dateFormat}
+            onChange={handleDateFormatChange}
+          >
+            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+
+  const HelpSettings = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white mb-6">Help & Support</h2>
+      
+      <div className="space-y-4">
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Quick Help</h3>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg cursor-pointer">
+              <span className="text-white">Getting Started Guide</span>
+              <span className="text-blue-400">→</span>
+            </div>
+            <div className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg cursor-pointer">
+              <span className="text-white">Keyboard Shortcuts</span>
+              <span className="text-blue-400">→</span>
+            </div>
+            <div className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg cursor-pointer">
+              <span className="text-white">FAQ</span>
+              <span className="text-blue-400">→</span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">Contact Support</h3>
+          <div className="space-y-3">
+            <button className="w-full p-3 bg-blue-600 hover:bg-blue-700 rounded-lg text-white transition-colors">
+              Send Feedback
+            </button>
+            <button className="w-full p-3 bg-green-600 hover:bg-green-700 rounded-lg text-white transition-colors">
+              Report a Bug
+            </button>
+            <button className="w-full p-3 bg-purple-600 hover:bg-purple-700 rounded-lg text-white transition-colors">
+              Contact Support
+            </button>
+          </div>
+        </div>
+        
+        <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+          <h3 className="text-lg font-semibold text-white mb-4">App Information</h3>
+          <div className="space-y-2 text-gray-400">
+            <p>Version: 1.0.0</p>
+            <p>Last Updated: December 2024</p>
+            <p>Terms of Service | Privacy Policy</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   const AppearanceSettings = () => (
     <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-white mb-6">Appearance</h2>
+      
       <div className="bg-white/5 rounded-xl border border-white/10 p-6">
         <h4 className="text-lg font-semibold text-white mb-4">Theme</h4>
-        <div className="grid grid-cols-2 gap-4">
-          {['dark', 'light'].map((theme) => (
+        <div className="grid grid-cols-3 gap-3">
+          {['dark', 'light', 'auto'].map((theme) => (
             <button
               key={theme}
-              onClick={() => setAppearanceSettings({ ...appearanceSettings, theme })}
-              className={`p-4 rounded-lg border-2 transition-colors ${
+              onClick={() => handleThemeChange(theme)}
+              className={`p-3 rounded-lg border-2 transition-colors capitalize ${
                 appearanceSettings.theme === theme
                   ? 'border-blue-500 bg-blue-500/20'
                   : 'border-white/20 hover:border-white/40'
               }`}
             >
-              <div className="flex items-center justify-center mb-2">
-                {theme === 'dark' ? (
-                  <Moon className="w-8 h-8 text-white" />
-                ) : (
-                  <Sun className="w-8 h-8 text-white" />
-                )}
-              </div>
-              <p className="text-white text-sm font-medium capitalize">{theme}</p>
-              {appearanceSettings.theme === theme && (
-                <Check className="w-4 h-4 text-blue-400 mt-2 mx-auto" />
-              )}
+              <span className="text-white">{theme}</span>
             </button>
           ))}
         </div>
@@ -291,7 +533,7 @@ const Settings = () => {
         <h4 className="text-lg font-semibold text-white mb-4">Font Size</h4>
         <select
           value={appearanceSettings.fontSize}
-          onChange={(e) => setAppearanceSettings({ ...appearanceSettings, fontSize: e.target.value })}
+          onChange={handleFontSizeChange}
           className="w-full bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white"
         >
           <option value="small">Small</option>
@@ -310,8 +552,14 @@ const Settings = () => {
         return <SecuritySettings />;
       case 'notifications':
         return <NotificationSettings />;
+      case 'privacy':
+        return <PrivacySettings />;
       case 'appearance':
         return <AppearanceSettings />;
+      case 'language':
+        return <LanguageSettings />;
+      case 'help':
+        return <HelpSettings />;
       default:
         return <div className="text-white">Section under development</div>;
     }

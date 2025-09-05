@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import {
@@ -25,6 +25,28 @@ export default function LoginPage() {
   
   const { login, loginWithGoogle, resetPassword, error, setError } = useAuth();
   const navigate = useNavigate();
+
+  // Input handlers to prevent focus loss
+  const handleEmailChange = useCallback((e) => {
+    setEmail(e.target.value);
+    if (errors.email) {
+      setErrors((prev) => ({ ...prev, email: "" }));
+    }
+  }, [errors.email]);
+
+  const handlePasswordChange = useCallback((e) => {
+    setPassword(e.target.value);
+    if (errors.password) {
+      setErrors((prev) => ({ ...prev, password: "" }));
+    }
+  }, [errors.password]);
+
+  const handleResetEmailChange = useCallback((e) => {
+    setResetEmail(e.target.value);
+    if (errors.resetEmail) {
+      setErrors((prev) => ({ ...prev, resetEmail: "" }));
+    }
+  }, [errors.resetEmail]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -223,12 +245,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (errors.email) {
-                        setErrors((prev) => ({ ...prev, email: "" }));
-                      }
-                    }}
+                    onChange={handleEmailChange}
                     placeholder="Enter your email address"
                     required
                     disabled={isLoading}
@@ -256,12 +273,7 @@ export default function LoginPage() {
                   <input
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      if (errors.password) {
-                        setErrors((prev) => ({ ...prev, password: "" }));
-                      }
-                    }}
+                    onChange={handlePasswordChange}
                     placeholder="Enter your password"
                     required
                     disabled={isLoading}
@@ -341,12 +353,7 @@ export default function LoginPage() {
                   <input
                     type="email"
                     value={resetEmail}
-                    onChange={(e) => {
-                      setResetEmail(e.target.value);
-                      if (errors.resetEmail) {
-                        setErrors((prev) => ({ ...prev, resetEmail: "" }));
-                      }
-                    }}
+                    onChange={handleResetEmailChange}
                     placeholder="Enter your email address"
                     required
                     disabled={isForgotPasswordLoading}

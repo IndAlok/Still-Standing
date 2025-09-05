@@ -99,9 +99,16 @@ class CrewConnectService {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
-      // Get user profile first
-      const userProfile = await this.getUserProfile();
-      if (!userProfile) throw new Error('User profile not found');
+      // Get user profile, create one if it doesn't exist
+      let userProfile = await this.getUserProfile();
+      if (!userProfile) {
+        console.log('User profile not found, creating one...');
+        userProfile = await this.createUserProfile({
+          username: user.email.split('@')[0],
+          displayName: user.displayName || user.email.split('@')[0],
+          bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`
+        });
+      }
 
       const crewData = {
         name,
@@ -112,6 +119,7 @@ class CrewConnectService {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         avatarUrl: null,
+        memberCount: 1
       };
 
       const crewRef = await addDoc(collection(db, 'crews'), crewData);

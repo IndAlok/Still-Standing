@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
@@ -41,6 +41,27 @@ const Groups = () => {
     isPrivate: false,
     category: 'General'
   });
+
+  // Input handlers to prevent focus loss
+  const handleSearchChange = useCallback((e) => {
+    setSearchQuery(e.target.value);
+  }, []);
+
+  const handleCreateFormNameChange = useCallback((e) => {
+    setCreateForm(prev => ({ ...prev, name: e.target.value }));
+  }, []);
+
+  const handleCreateFormDescriptionChange = useCallback((e) => {
+    setCreateForm(prev => ({ ...prev, description: e.target.value }));
+  }, []);
+
+  const handleSetPublicGroup = useCallback(() => {
+    setCreateForm(prev => ({ ...prev, isPrivate: false }));
+  }, []);
+
+  const handleSetPrivateGroup = useCallback(() => {
+    setCreateForm(prev => ({ ...prev, isPrivate: true }));
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -296,7 +317,7 @@ const Groups = () => {
               type="text"
               placeholder="Search groups..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-full"
             />
           </div>
@@ -366,7 +387,7 @@ const Groups = () => {
                   <input
                     type="text"
                     value={createForm.name}
-                    onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
+                    onChange={handleCreateFormNameChange}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                     placeholder="Enter group name..."
                     required
@@ -379,7 +400,7 @@ const Groups = () => {
                   </label>
                   <textarea
                     value={createForm.description}
-                    onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                    onChange={handleCreateFormDescriptionChange}
                     className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 h-24 resize-none"
                     placeholder="Describe your group..."
                     required
@@ -396,7 +417,7 @@ const Groups = () => {
                         type="radio"
                         name="privacy"
                         checked={!createForm.isPrivate}
-                        onChange={() => setCreateForm({...createForm, isPrivate: false})}
+                        onChange={handleSetPublicGroup}
                         className="text-blue-500 focus:ring-blue-500/50"
                       />
                       <div className="flex items-center space-x-2">
@@ -409,7 +430,7 @@ const Groups = () => {
                         type="radio"
                         name="privacy"
                         checked={createForm.isPrivate}
-                        onChange={() => setCreateForm({...createForm, isPrivate: true})}
+                        onChange={handleSetPrivateGroup}
                         className="text-blue-500 focus:ring-blue-500/50"
                       />
                       <div className="flex items-center space-x-2">
