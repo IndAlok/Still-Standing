@@ -246,6 +246,9 @@ class CrewConnectService {
               canModerate: membershipData.canModerate || false,
             }
           });
+
+          // Auto-sync member count to fix any inconsistencies
+          this.syncCrewMemberCount(crewId).catch(console.error);
         }
       }
       
@@ -683,6 +686,17 @@ class CrewConnectService {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
+      // Refresh auth token to ensure it's not expired
+      try {
+        await user.getIdToken(true); // Force refresh
+        console.log('🗑️ DEBUG: Auth token refreshed successfully');
+      } catch (tokenError) {
+        console.error('🗑️ ERROR: Failed to refresh auth token:', tokenError);
+        throw new Error('Authentication token expired. Please sign out and sign in again.');
+      }
+
+      console.log('🗑️ DEBUG: Attempting to delete crew', crewId, 'by user', user.uid);
+
       // Check if user is the creator
       const crewDoc = await getDoc(doc(db, 'crews', crewId));
       if (!crewDoc.exists()) {
@@ -690,9 +704,66 @@ class CrewConnectService {
       }
 
       const crewData = crewDoc.data();
-      if (crewData.createdBy !== user.uid) {
-        throw new Error('Only the creator can delete this crew');
+      console.log('🗑️ DEBUG: Crew data:', { 
+        id: crewId, 
+        createdBy: crewData.createdBy, 
+        currentUser: user.uid,
+        matches: crewData.createdBy === user.uid 
+      });
+
+      // Get user profile to cross-check
+      const userProfile = await this.getUserProfile();
+      console.log('🗑️ DEBUG: User profile:', {
+        firebaseUID: userProfile?.firebaseUID,
+        currentAuthUID: user.uid,
+        matches: userProfile?.firebaseUID === user.uid
+      });
+
+      // Additional UID debugging
+      console.log('🗑️ DEBUG: UID comparison details:');
+      console.log('🗑️ DEBUG: crewData.createdBy type:', typeof crewData.createdBy);
+      console.log('🗑️ DEBUG: crewData.createdBy value:', crewData.createdBy);
+      console.log('🗑️ DEBUG: crewData.createdBy length:', crewData.createdBy?.length);
+      console.log('🗑️ DEBUG: user.uid type:', typeof user.uid);
+      console.log('🗑️ DEBUG: user.uid value:', user.uid);
+      console.log('🗑️ DEBUG: user.uid length:', user.uid?.length);
+      console.log('🗑️ DEBUG: String comparison:', String(crewData.createdBy) === String(user.uid));
+      console.log('🗑️ DEBUG: Trimmed comparison:', String(crewData.createdBy).trim() === String(user.uid).trim());
+
+      // Use more robust UID comparison
+      const isCreator = String(crewData.createdBy).trim() === String(user.uid).trim();
+      
+      if (!isCreator) {
+        console.log('🗑️ DEBUG: Creator check failed, checking admin role...');
+        
+        // Also check membership role as backup
+        const membershipCheckQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', crewId),
+          where('isActive', '==', true)
+        );
+        const membershipCheckSnapshot = await getDocs(membershipCheckQuery);
+        
+        if (!membershipCheckSnapshot.empty) {
+          const membershipData = membershipCheckSnapshot.docs[0].data();
+          console.log('🗑️ DEBUG: User membership role:', membershipData.role);
+          
+          // Allow deletion if user is admin
+          if (membershipData.role === 'admin') {
+            console.log('🗑️ DEBUG: User is admin, allowing deletion');
+          } else {
+            throw new Error(`Insufficient permissions: You are a ${membershipData.role}, but only admins or creators can delete groups. CreatedBy: ${crewData.createdBy}, Your UID: ${user.uid}`);
+          }
+        } else {
+          console.log('🗑️ DEBUG: No active membership found');
+          throw new Error(`Access denied: No active membership found. You might not be a member of this group. CreatedBy: ${crewData.createdBy}, Your UID: ${user.uid}`);
+        }
+      } else {
+        console.log('🗑️ DEBUG: Creator check passed');
       }
+
+      console.log('🗑️ DEBUG: Permission checks passed, proceeding with deletion');
 
       // Delete all associated data using batch
       const batch = writeBatch(db);
@@ -721,9 +792,29 @@ class CrewConnectService {
       });
 
       await batch.commit();
+      
+      console.log('🗑️ DEBUG: Crew deletion batch committed successfully');
+      
+      // Clear all relevant caches
+      cacheService.invalidate(`user_crews_${user.uid}`);
+      cacheService.invalidate(`crew_messages_${crewId}`);
+      console.log('🎯 Cleared caches after crew deletion');
+      
       return { success: true };
     } catch (error) {
-      console.error('Error deleting crew:', error);
+      console.error('🗑️ ERROR: Failed to delete crew:', error);
+      console.error('🗑️ ERROR: Error code:', error.code);
+      console.error('🗑️ ERROR: Error message:', error.message);
+      
+      // Check for specific Firebase permission errors
+      if (error.code === 'permission-denied') {
+        throw new Error('Permission denied: You may not have the required permissions to delete this group. Please ensure you are the group creator or admin.');
+      } else if (error.code === 'unauthenticated') {
+        throw new Error('Authentication required: Please sign in again and try deleting the group.');
+      } else if (error.code === 'not-found') {
+        throw new Error('Group not found: This group may have already been deleted.');
+      }
+      
       throw error;
     }
   }
@@ -1235,8 +1326,26 @@ class CrewConnectService {
       }
 
       const crewData = crewDoc.data();
+      
+      // Check if user is the creator or admin
       if (crewData.createdBy !== user.uid) {
-        throw new Error('Access denied: Only crew owners can remove members');
+        // Check if user has admin privileges
+        const membershipQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', crewId),
+          where('isActive', '==', true)
+        );
+        const membershipSnapshot = await getDocs(membershipQuery);
+        
+        if (!membershipSnapshot.empty) {
+          const membershipData = membershipSnapshot.docs[0].data();
+          if (membershipData.role !== 'admin') {
+            throw new Error('Access denied: Only crew owners or admins can remove members');
+          }
+        } else {
+          throw new Error('Access denied: Only crew owners or admins can remove members');
+        }
       }
 
       // Cannot remove the creator themselves
@@ -1250,11 +1359,19 @@ class CrewConnectService {
         throw new Error('User is not a member of this crew');
       }
 
-      // Remove from crew members list
+      // Remove from crew members list and update member count
       const updatedMembers = members.filter(uid => uid !== memberUid);
       await updateDoc(doc(db, 'crews', crewId), {
         members: updatedMembers,
+        memberCount: updatedMembers.length, // Update member count
         updatedAt: Timestamp.now()
+      });
+
+      console.log('🗑️ DEBUG: Updated crew members:', {
+        crewId,
+        oldMemberCount: members.length,
+        newMemberCount: updatedMembers.length,
+        removedMember: memberUid
       });
 
       // Deactivate membership record
@@ -1273,10 +1390,54 @@ class CrewConnectService {
         });
       }
 
+      // Clear relevant caches
+      cacheService.invalidate(`user_crews_${memberUid}`); // Clear removed member's cache
+      cacheService.invalidate(`user_crews_${user.uid}`); // Clear current user's cache
+      console.log('🎯 Cleared caches after member removal');
+
       return { success: true };
     } catch (error) {
       console.error('Error removing member from crew:', error);
       throw error;
+    }
+  }
+
+  // Utility function to sync member count (temporary for fixing data inconsistencies)
+  async syncCrewMemberCount(crewId) {
+    try {
+      console.log('🔧 DEBUG: Syncing member count for crew', crewId);
+      
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        console.warn('🔧 DEBUG: Crew not found:', crewId);
+        return;
+      }
+
+      const crewData = crewDoc.data();
+      const currentMembers = crewData.members || [];
+      const actualMemberCount = currentMembers.length;
+      const storedMemberCount = crewData.memberCount || 0;
+
+      console.log('🔧 DEBUG: Member count comparison:', {
+        crewId,
+        actualCount: actualMemberCount,
+        storedCount: storedMemberCount,
+        members: currentMembers
+      });
+
+      if (actualMemberCount !== storedMemberCount) {
+        console.log('🔧 DEBUG: Fixing member count mismatch');
+        await updateDoc(doc(db, 'crews', crewId), {
+          memberCount: actualMemberCount,
+          updatedAt: serverTimestamp()
+        });
+        console.log('🔧 DEBUG: Member count updated from', storedMemberCount, 'to', actualMemberCount);
+      }
+
+      return { actualCount: actualMemberCount, wasFixed: actualMemberCount !== storedMemberCount };
+    } catch (error) {
+      console.error('🔧 ERROR: Failed to sync member count:', error);
+      return null;
     }
   }
 
