@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import { useNotifications } from '../../contexts/NotificationContext';
 import crewConnectService from '../../services/crewConnectService';
+import cacheService from '../../services/cacheService';
 import {
   Users,
   Plus,
@@ -43,6 +44,7 @@ const Groups = () => {
   const [addMemberGroupId, setAddMemberGroupId] = useState(null);
   const [memberEmail, setMemberEmail] = useState('');
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState(null); // Missing state
   const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
 
   // Form states
@@ -76,9 +78,16 @@ const Groups = () => {
 
   useEffect(() => {
     fetchData();
-  }, [activeTab]);
+    
+    // Debug current user info
+    if (currentUser?.uid) {
+      console.log('🔍 Groups component: Current user UID:', currentUser.uid);
+      console.log('🔍 Groups component: Current user email:', currentUser.email);
+      console.log('🔍 Groups component: Current user object:', currentUser);
+    }
+  }, [activeTab, currentUser]);
 
-  const fetchData = async () => {
+  const fetchData = async (forceFresh = false) => {
     try {
       setLoading(true);
       setError('');
@@ -93,6 +102,34 @@ const Groups = () => {
     } catch (error) {
       console.error('Error fetching groups:', error);
       setError('Failed to load groups. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const refreshData = async () => {
+    // Force refresh by clearing cache first
+    if (currentUser?.uid) {
+      cacheService.invalidate(`user_crews_${currentUser.uid}`);
+    }
+    await fetchData(true);
+  };
+
+  const syncMemberCounts = async () => {
+    try {
+      setLoading(true);
+      console.log('🔧 Syncing member counts for all groups...');
+      
+      const groups = activeTab === 'my-groups' ? myGroups : publicGroups;
+      for (const group of groups) {
+        await crewConnectService.syncCrewMemberCount(group.id);
+      }
+      
+      setSuccess('Member counts synchronized successfully!');
+      await refreshData();
+    } catch (error) {
+      console.error('Error syncing member counts:', error);
+      setError('Failed to sync member counts');
     } finally {
       setLoading(false);
     }
@@ -126,7 +163,7 @@ const Groups = () => {
       
       // Refresh my groups
       if (activeTab === 'my-groups') {
-        await fetchData();
+        await refreshData();
       }
       
     } catch (error) {
@@ -153,7 +190,7 @@ const Groups = () => {
       }
       
       // Refresh data
-      await fetchData();
+      await refreshData();
       
     } catch (error) {
       console.error('Error joining group:', error);
@@ -174,8 +211,8 @@ const Groups = () => {
       // Refresh the member list
       await handleViewMembers(groupId);
       
-      // Refresh the groups data
-      await fetchData();
+      // Refresh the groups data to show updated member counts
+      await refreshData();
       
     } catch (error) {
       console.error('Error removing member:', error);
@@ -195,8 +232,13 @@ const Groups = () => {
       setShowDeleteConfirm(false);
       setDeleteGroupId(null);
       
-      // Refresh data
-      await fetchData();
+      // Close any modals that might be open
+      setShowMembersModal(false);
+      setSelectedGroupId(null);
+      setSelectedGroupMembers([]);
+      
+      // Force refresh data from server (not cache)
+      await refreshData();
       
     } catch (error) {
       console.error('Error deleting group:', error);
@@ -239,6 +281,7 @@ const Groups = () => {
     try {
       setLoading(true);
       const members = await crewConnectService.getCrewMembers(groupId);
+      setSelectedGroupId(groupId); // Set the selected group ID
       setSelectedGroupMembers(members);
       setShowMembersModal(true);
     } catch (error) {
@@ -361,9 +404,14 @@ const Groups = () => {
                   <span>Chat</span>
                 </Link>
                 
-                {group.createdBy === currentUser?.uid ? (
+                {(group.createdBy === currentUser?.uid || group.membership?.role === 'admin') ? (
                   <button
                     onClick={() => {
+                      console.log('🗑️ UI DEBUG: Delete button clicked');
+                      console.log('🗑️ UI DEBUG: Group createdBy:', group.createdBy);
+                      console.log('🗑️ UI DEBUG: Current user UID:', currentUser?.uid);
+                      console.log('🗑️ UI DEBUG: User role:', group.membership?.role);
+                      console.log('🗑️ UI DEBUG: Group data:', group);
                       setDeleteGroupId(group.id);
                       setShowDeleteConfirm(true);
                     }}
@@ -407,13 +455,25 @@ const Groups = () => {
               </h1>
             </div>
             
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors flex items-center space-x-2"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Group</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={syncMemberCounts}
+                disabled={loading}
+                className="bg-orange-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-orange-500 transition-colors flex items-center space-x-2 disabled:opacity-50"
+                title="Sync member counts"
+              >
+                <Users className="w-4 h-4" />
+                <span>Sync Counts</span>
+              </button>
+              
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors flex items-center space-x-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Group</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -717,7 +777,11 @@ const Groups = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-white">Group Members</h2>
                 <button
-                  onClick={() => setShowMembersModal(false)}
+                  onClick={() => {
+                    setShowMembersModal(false);
+                    setSelectedGroupId(null);
+                    setSelectedGroupMembers([]);
+                  }}
                   className="text-gray-400 hover:text-white transition-colors"
                 >
                   <X className="w-5 h-5" />
