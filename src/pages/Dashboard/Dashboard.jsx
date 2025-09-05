@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
+import NotificationDropdown from '../../components/NotificationDropdown/NotificationDropdown';
 import {
   Users,
   MessageCircle,
@@ -9,7 +10,6 @@ import {
   Settings,
   LogOut,
   Search,
-  Bell,
   Plus,
   User,
   Shield,
@@ -32,6 +32,11 @@ const Dashboard = () => {
     onlineMembers: 0,
     recentActivity: 0
   });
+  const [statsHistory, setStatsHistory] = useState({
+    groupsLastWeek: 0,
+    messagesYesterday: 0,
+    activityLastHour: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,10 +50,10 @@ const Dashboard = () => {
       }
 
       try {
-        console.log('Setting loading to true and basic user data');
+        console.log('Setting loading to true and fetching dashboard data');
         setLoading(true);
         
-        // Set basic user data immediately without any external calls
+        // Set basic user data immediately 
         const basicUserData = {
           displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
           email: currentUser.email,
@@ -59,8 +64,102 @@ const Dashboard = () => {
         
         setUserData(basicUserData);
         console.log('Basic user data set:', basicUserData);
+
+        // Fetch user's groups
+        const userGroups = await crewConnectService.getUserCrews();
+        setUserGroups(userGroups);
+        console.log('User groups fetched:', userGroups);
+
+        // Fetch recent messages across all groups
+        const recentMessages = [];
+        for (const group of userGroups.slice(0, 5)) { // Limit to 5 groups to avoid too many requests
+          try {
+            const groupMessages = await crewConnectService.getCrewMessages(group.id, 1); // Get just the latest message
+            if (groupMessages && groupMessages.length > 0) {
+              const latestMessage = groupMessages[0];
+              recentMessages.push({
+                groupId: group.id,
+                groupName: group.name,
+                lastMessage: {
+                  sender: {
+                    displayName: latestMessage.senderName || 'Unknown'
+                  },
+                  content: latestMessage.message || 'No messages yet'
+                },
+                onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
+                timestamp: latestMessage.sentAt?.toDate ? latestMessage.sentAt.toDate() : new Date(latestMessage.sentAt)
+              });
+            } else {
+              // Group has no messages
+              recentMessages.push({
+                groupId: group.id,
+                groupName: group.name,
+                lastMessage: {
+                  sender: {
+                    displayName: ''
+                  },
+                  content: 'No messages yet'
+                },
+                onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
+                timestamp: new Date(0) // Very old date so it appears last
+              });
+            }
+          } catch (error) {
+            console.warn(`Failed to fetch messages for group ${group.id}:`, error);
+          }
+        }
         
-        // Set default empty states for other data
+        // Sort by timestamp (most recent first)
+        const sortedMessages = recentMessages
+          .sort((a, b) => b.timestamp - a.timestamp)
+          .slice(0, 10);
+        
+        setRecentMessages(sortedMessages);
+        console.log('Recent messages fetched:', sortedMessages);
+
+        // Calculate real stats
+        const totalMessages = recentMessages.length;
+        let onlineMembers = 1; // At least the current user
+        let recentActivity = 0;
+        
+        // Count online members and recent activity from groups
+        for (const group of userGroups) {
+          try {
+            const members = await crewConnectService.getCrewMembers(group.id);
+            onlineMembers += members.filter(member => 
+              member.isOnline && member.uid !== currentUser.uid
+            ).length;
+            
+            // Count recent activity (messages in last 24 hours)
+            const groupMessages = await crewConnectService.getCrewMessages(group.id, 50);
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            const recentGroupActivity = groupMessages.filter(msg => {
+              const msgDate = msg.sentAt?.toDate ? msg.sentAt.toDate() : new Date(msg.sentAt);
+              return msgDate > oneDayAgo;
+            }).length;
+            recentActivity += recentGroupActivity;
+          } catch (error) {
+            console.warn(`Failed to fetch data for group ${group.id}:`, error);
+          }
+        }
+        
+        setStats({
+          totalGroups: userGroups.length,
+          totalMessages: totalMessages,
+          onlineMembers: Math.max(1, onlineMembers), // At least 1 (current user)
+          recentActivity: recentActivity
+        });
+        
+        console.log('Dashboard stats calculated:', {
+          totalGroups: userGroups.length,
+          totalMessages: totalMessages,
+          onlineMembers: Math.max(1, onlineMembers),
+          recentActivity: recentActivity
+        });
+        
+      } catch (error) {
+        console.error('Error in dashboard data fetch:', error);
+        // Set fallback data on error
         setUserGroups([]);
         setRecentMessages([]);
         setStats({
@@ -69,11 +168,6 @@ const Dashboard = () => {
           onlineMembers: 1,
           recentActivity: 0
         });
-        
-        console.log('Dashboard data initialization completed');
-        
-      } catch (error) {
-        console.error('Error in dashboard data fetch:', error);
       } finally {
         console.log('Setting loading to false');
         setLoading(false);
@@ -84,7 +178,7 @@ const Dashboard = () => {
     const timeoutId = setTimeout(fetchDashboardData, 100);
     return () => clearTimeout(timeoutId);
     
-  }, [currentUser?.uid]); // Only depend on user ID to prevent unnecessary re-renders
+  }, [currentUser?.uid]);
 
   const handleLogout = async () => {
     try {
@@ -112,7 +206,14 @@ const Dashboard = () => {
       description: 'Find and join existing groups',
       icon: UserPlus,
       color: 'from-green-500 to-green-600',
-      onClick: () => navigate('/groups')
+      onClick: () => navigate('/discover')
+    },
+    {
+      title: 'Invitations',
+      description: 'Manage group invitations',
+      icon: User,
+      color: 'from-orange-500 to-orange-600',
+      onClick: () => navigate('/invitations')
     },
     {
       title: 'Start Chat',
@@ -130,6 +231,21 @@ const Dashboard = () => {
     }
   ];
 
+  const getGroupsTrend = () => {
+    const newGroups = stats.totalGroups - statsHistory.groupsLastWeek;
+    return newGroups > 0 ? `+${newGroups} this week` : 'No new groups';
+  };
+
+  const getMessagesTrend = () => {
+    const newMessages = stats.totalMessages - statsHistory.messagesYesterday;
+    return newMessages > 0 ? `+${newMessages} recent` : 'No recent messages';
+  };
+
+  const getActivityTrend = () => {
+    const newActivity = stats.recentActivity - statsHistory.activityLastHour;
+    return stats.recentActivity > 0 ? `${stats.recentActivity} today` : 'No recent activity';
+  };
+
   const statCards = [
     {
       title: 'Total Groups',
@@ -137,7 +253,7 @@ const Dashboard = () => {
       icon: Users,
       color: 'text-blue-500',
       bg: 'bg-blue-500/10',
-      trend: '+2 this week'
+      trend: getGroupsTrend()
     },
     {
       title: 'Messages Sent',
@@ -145,7 +261,7 @@ const Dashboard = () => {
       icon: MessageCircle,
       color: 'text-green-500',
       bg: 'bg-green-500/10',
-      trend: '+23 today'
+      trend: getMessagesTrend()
     },
     {
       title: 'Online Members',
@@ -161,7 +277,7 @@ const Dashboard = () => {
       icon: TrendingUp,
       color: 'text-orange-500',
       bg: 'bg-orange-500/10',
-      trend: 'Last hour'
+      trend: getActivityTrend()
     }
   ];
 
@@ -198,10 +314,7 @@ const Dashboard = () => {
                 />
               </div>
               
-              <button className="p-2 text-gray-400 hover:text-white transition-colors relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
+              <NotificationDropdown />
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
