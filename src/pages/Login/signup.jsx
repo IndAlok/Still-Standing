@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Mail,
   User,
@@ -8,15 +10,17 @@ import {
   AlertCircle,
   CheckCircle,
 } from "lucide-react";
-import axios from "axios";
 
 export default function SignUpPage() {
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [message, setMessage] = useState("");
-  //   const { loginWithGoogle } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  const { signup, loginWithGoogle, error, setError } = useAuth();
+  const navigate = useNavigate();
 
   const GoogleIcon = () => (
     <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -72,28 +76,40 @@ export default function SignUpPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     if (!validateForm()) {
       return;
     }
 
     setIsLoading(true);
     setMessage("");
+    setError(null);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/register`,
-        form
-      );
-
-      setMessage("Registration successful! Please Login.");
+      await signup(form.email, form.password, form.username);
+      setMessage("Registration successful! Redirecting...");
+      setTimeout(() => navigate("/dashboard"), 1000);
     } catch (err) {
-      setMessage(
-        err.response?.data?.message || "Registration failed. Please try again."
-      );
+      setMessage(error || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setIsGoogleLoading(true);
+    setMessage("");
+    setError(null);
+
+    try {
+      await loginWithGoogle();
+      setMessage("Google registration successful! Redirecting...");
+      setTimeout(() => navigate("/dashboard"), 1000);
+    } catch (err) {
+      setMessage(error || "Google registration failed");
+    } finally {
+      setIsGoogleLoading(false);
     }
   };
 
@@ -111,10 +127,21 @@ export default function SignUpPage() {
           </div>
           <button
             type="button"
-            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-white/20 disabled:bg-white/5 text-gray-700 font-medium py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-[1.02] mb-6"
+            onClick={handleGoogleSignup}
+            disabled={isGoogleLoading}
+            className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:bg-gray-100 text-gray-700 font-medium py-3 px-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:scale-[1.02] mb-6 border border-gray-300 disabled:cursor-not-allowed disabled:scale-100"
           >
-            <GoogleIcon />
-            Continue with Google
+            {isGoogleLoading ? (
+              <>
+                <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"></div>
+                <span>Signing up...</span>
+              </>
+            ) : (
+              <>
+                <GoogleIcon />
+                <span>Continue with Google</span>
+              </>
+            )}
           </button>
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
@@ -257,12 +284,12 @@ export default function SignUpPage() {
           <div className="text-center mt-6">
             <p className="text-white/60 text-sm">
               Already have an account?{" "}
-              <a
-                href="/login"
+              <Link
+                to="/login"
                 className="text-blue-400 hover:text-blue-300 font-medium transition-colors hover:underline"
               >
                 Sign in
-              </a>
+              </Link>
             </p>
           </div>
         </div>

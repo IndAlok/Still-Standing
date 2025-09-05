@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Lock,
   User,
@@ -14,25 +14,27 @@ import {
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isgoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isForgotPasswordLoading, setIsForgotPasswordLoading] = useState(false);
   const [password, setPassword] = useState("");
-  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [resetEmail, setResetEmail] = useState("");
   const [message, setMessage] = useState("");
   const [showForgotPassword, setShowForgotPassword] = useState(false);
-  // const { login, loginWithGoogle } = useAuth();
   const [errors, setErrors] = useState({});
+  
+  const { login, loginWithGoogle, resetPassword, error, setError } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!username.trim()) {
-      newErrors.username = "Username is required";
-    } else if (username.length < 3) {
-      newErrors.username = "Username must be at least 3 characters";
+    if (!email.trim()) {
+      newErrors.email = "Email is required";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      newErrors.email = "Please enter a valid email address";
     }
+
     if (!password) {
       newErrors.password = "Password is required";
     } else if (password.length < 6) {
@@ -47,10 +49,10 @@ export default function LoginPage() {
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!email.trim()) {
-      newErrors.email = "Email is required";
-    } else if (!emailRegex.test(email)) {
-      newErrors.email = "Please enter a valid email address";
+    if (!resetEmail.trim()) {
+      newErrors.resetEmail = "Email is required";
+    } else if (!emailRegex.test(resetEmail)) {
+      newErrors.resetEmail = "Please enter a valid email address";
     }
 
     setErrors(newErrors);
@@ -62,46 +64,36 @@ export default function LoginPage() {
     if (!validateForm()) {
       return;
     }
+
     setIsLoading(true);
     setMessage("");
+    setError(null);
 
     try {
-      setTimeout(async () => {
-        try {
-          const res = await axios.post(
-            `${process.env.REACT_APP_API_URL}/api/auth/login`,
-            {
-              username,
-              password,
-            }
-          );
-
-          setMessage("Login successful! Redirecting...");
-          await login(res.data.token);
-          setTimeout(() => navigate("/home"), 1000);
-        } catch (err) {
-          setMessage("Invalid credentials. Please try again");
-        } finally {
-          setIsLoading(false);
-        }
-      }, 1500);
+      await login(email, password);
+      setMessage("Login successful! Redirecting...");
+      setTimeout(() => navigate("/dashboard"), 1000);
     } catch (err) {
-      setMessage(err.response?.data?.message || "Login failed");
+      setMessage(error || "Invalid credentials. Please try again");
+    } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
-    setTimeout(async () => {
-      try {
-        await loginWithGoogle();
-        setMessage("Google login successful! Redirecting...");
-      } catch (err) {
-        setMessage("Google login failed");
-        setIsGoogleLoading(false);
-      }
-    }, 1500);
+    setMessage("");
+    setError(null);
+
+    try {
+      await loginWithGoogle();
+      setMessage("Google login successful! Redirecting...");
+      setTimeout(() => navigate("/dashboard"), 1000);
+    } catch (err) {
+      setMessage(error || "Google login failed");
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const handleForgotPassword = async (e) => {
@@ -109,23 +101,21 @@ export default function LoginPage() {
     if (!validateEmail()) {
       return;
     }
+
     setIsForgotPasswordLoading(true);
     setMessage("");
+    setError(null);
 
     try {
-      const res = await axios.post(
-        `${process.env.REACT_APP_API_URL}/api/auth/forgot-password`,
-        { email }
-      );
-
+      await resetPassword(resetEmail);
       setMessage("Password reset link sent to your email!");
-      setEmail("");
+      setResetEmail("");
       setTimeout(() => {
         setShowForgotPassword(false);
         setMessage("");
       }, 3000);
     } catch (err) {
-      setMessage(err.response?.data?.message || "Failed to send reset email");
+      setMessage(error || "Failed to send reset email");
     } finally {
       setIsForgotPasswordLoading(false);
     }
@@ -135,7 +125,8 @@ export default function LoginPage() {
     setShowForgotPassword(false);
     setMessage("");
     setErrors({});
-    setEmail("");
+    setResetEmail("");
+    setError(null);
   };
 
   const GoogleIcon = () => (
@@ -192,13 +183,13 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={isgoogleLoading}
-                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-white/20 disabled:bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-gray-800 font-medium transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group disabled:cursor-not-allowed disabled:scale-100"
+                disabled={isGoogleLoading}
+                className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-50 disabled:bg-gray-100 border border-gray-300 rounded-xl py-3 px-4 text-gray-700 font-medium transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group disabled:cursor-not-allowed disabled:scale-100"
               >
-                {isgoogleLoading ? (
+                {isGoogleLoading ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                    <span className="text-white">Signing in...</span>
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-gray-700 rounded-full animate-spin"></div>
+                    <span>Signing in...</span>
                   </>
                 ) : (
                   <>
@@ -221,33 +212,33 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
-                  Username
+                  Email Address
                 </label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
-                    type="text"
-                    value={username}
+                    type="email"
+                    value={email}
                     onChange={(e) => {
-                      setUsername(e.target.value);
-                      if (errors.username) {
-                        setErrors((prev) => ({ ...prev, username: "" }));
+                      setEmail(e.target.value);
+                      if (errors.email) {
+                        setErrors((prev) => ({ ...prev, email: "" }));
                       }
                     }}
-                    placeholder="Enter your username"
+                    placeholder="Enter your email address"
                     required
                     disabled={isLoading}
                     className={`w-full pl-12 pr-4 py-3 bg-white/5 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      errors.username
+                      errors.email
                         ? "border-red-500 focus:ring-red-500/50"
                         : "border-white/20 focus:ring-blue-500/50 focus:border-blue-500/50"
                     }`}
                   />
                 </div>
-                {errors.username && (
+                {errors.email && (
                   <div className="flex items-center gap-2 mt-2 text-red-400 text-sm">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.username}
+                    {errors.email}
                   </div>
                 )}
               </div>
@@ -323,15 +314,15 @@ export default function LoginPage() {
                 )}
               </button>
 
-              <div className="text-center">
+                <div className="text-center">
                 <p className="text-gray-400">
                   Don't have an account?{" "}
-                  <a
-                    href="/register"
+                  <Link
+                    to="/register"
                     className="text-purple-400 hover:text-purple-300 font-medium hover:underline transition-colors"
                   >
                     Create one here
-                  </a>
+                  </Link>
                 </p>
               </div>
             </div>
@@ -345,27 +336,27 @@ export default function LoginPage() {
                   <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
                   <input
                     type="email"
-                    value={email}
+                    value={resetEmail}
                     onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (errors.email) {
-                        setErrors((prev) => ({ ...prev, email: "" }));
+                      setResetEmail(e.target.value);
+                      if (errors.resetEmail) {
+                        setErrors((prev) => ({ ...prev, resetEmail: "" }));
                       }
                     }}
                     placeholder="Enter your email address"
                     required
                     disabled={isForgotPasswordLoading}
                     className={`w-full pl-12 pr-4 py-3 bg-white/5 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 transition-all duration-200 ${
-                      errors.email
+                      errors.resetEmail
                         ? "border-red-500 focus:ring-red-500/50"
                         : "border-white/20 focus:ring-blue-500/50 focus:border-blue-500/50"
                     }`}
                   />
                 </div>
-                {errors.email && (
+                {errors.resetEmail && (
                   <div className="flex items-center gap-2 mt-2 text-red-400 text-sm">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.email}
+                    {errors.resetEmail}
                   </div>
                 )}
               </div>
