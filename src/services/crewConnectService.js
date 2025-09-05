@@ -14,6 +14,7 @@ import {
   where,
   orderBy,
   limit,
+  limitToLast,
   onSnapshot,
   serverTimestamp,
   arrayUnion,
@@ -136,7 +137,9 @@ class CrewConnectService {
         crewId: crewRef.id,
         role: 'admin',
         isActive: true,
-        joinedAt: serverTimestamp()
+        joinedAt: serverTimestamp(),
+        canInvite: true,
+        canModerate: true
       });
       
       return { id: crewRef.id, ...crewData };
@@ -204,9 +207,17 @@ class CrewConnectService {
         const crewDoc = await getDoc(doc(db, 'crews', membershipData.crewId));
         
         if (crewDoc.exists()) {
+          const crewData = crewDoc.data();
+          
+          // Run consistency check for crews where user is creator
+          if (crewData.createdBy === user.uid) {
+            // Ensure creator has proper membership (async, doesn't block UI)
+            this.ensureCreatorMembership(membershipData.crewId).catch(console.error);
+          }
+          
           crews.push({
             id: crewDoc.id,
-            ...crewDoc.data(),
+            ...crewData,
             membership: {
               role: membershipData.role,
               joinedAt: membershipData.joinedAt,
@@ -256,6 +267,21 @@ class CrewConnectService {
       };
 
       const membershipRef = await addDoc(collection(db, 'memberships'), membershipData);
+      
+      // Also update the crew's members array
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (crewDoc.exists()) {
+        const crewData = crewDoc.data();
+        const currentMembers = crewData.members || [];
+        if (!currentMembers.includes(user.uid)) {
+          await updateDoc(doc(db, 'crews', crewId), {
+            members: [...currentMembers, user.uid],
+            memberCount: (crewData.memberCount || 0) + 1,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      
       return { id: membershipRef.id, ...membershipData };
     } catch (error) {
       console.error('Error joining crew:', error);
@@ -610,25 +636,264 @@ class CrewConnectService {
     }
   }
 
-  // Add member to crew by email
-  async addMemberToCrew(crewId, userEmail) {
+  // Join Request and Invitation System
+
+  // Send join request to a crew
+  async sendJoinRequest(crewId, message = '') {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
-      // Check if current user is crew creator or admin
+      const userProfile = await this.getUserProfile();
+      if (!userProfile) throw new Error('User profile not found');
+
+      // Check if user is already a member
+      const existingMembership = query(
+        collection(db, 'memberships'),
+        where('userId', '==', user.uid),
+        where('crewId', '==', crewId),
+        where('isActive', '==', true)
+      );
+      const existingSnapshot = await getDocs(existingMembership);
+      
+      if (!existingSnapshot.empty) {
+        throw new Error('Already a member of this crew');
+      }
+
+      // Check if there's already a pending request
+      const pendingRequest = query(
+        collection(db, 'joinRequests'),
+        where('userId', '==', user.uid),
+        where('crewId', '==', crewId),
+        where('status', '==', 'pending')
+      );
+      const pendingSnapshot = await getDocs(pendingRequest);
+      
+      if (!pendingSnapshot.empty) {
+        throw new Error('Join request already pending');
+      }
+
+      const requestData = {
+        userId: user.uid,
+        crewId,
+        userEmail: userProfile.email,
+        userName: userProfile.displayName || userProfile.username,
+        userAvatar: userProfile.avatarUrl || null,
+        message,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      };
+
+      const requestRef = await addDoc(collection(db, 'joinRequests'), requestData);
+      return { id: requestRef.id, ...requestData };
+    } catch (error) {
+      console.error('Error sending join request:', error);
+      throw error;
+    }
+  }
+
+  // Get pending join requests for a crew (for crew owners/admins)
+  async getJoinRequests(crewId, status = 'pending') {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Verify user is crew owner/admin
       const crewDoc = await getDoc(doc(db, 'crews', crewId));
       if (!crewDoc.exists()) {
         throw new Error('Crew not found');
       }
 
       const crewData = crewDoc.data();
-      const members = crewData.members || [];
-      if (crewData.createdBy !== user.uid && !members.includes(user.uid)) {
-        throw new Error('Only crew members can add new members');
+      
+      // Check if user has permission to view join requests
+      let hasPermission = false;
+      
+      // Crew creators always have permission
+      if (crewData.createdBy === user.uid) {
+        hasPermission = true;
+      } else {
+        // Check membership permissions for non-creators
+        const membershipQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', crewId),
+          where('isActive', '==', true)
+        );
+        const membershipSnapshot = await getDocs(membershipQuery);
+        
+        if (!membershipSnapshot.empty) {
+          const membership = membershipSnapshot.docs[0].data();
+          // Allow admins or moderators to view join requests
+          if (membership.role === 'admin' || membership.role === 'moderator') {
+            hasPermission = true;
+          }
+        }
+      }
+      
+      if (!hasPermission) {
+        throw new Error('Only crew owners and admins can view join requests');
       }
 
-      // Find user by email
+      const requestsQuery = query(
+        collection(db, 'joinRequests'),
+        where('crewId', '==', crewId),
+        where('status', '==', status),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(requestsQuery);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error getting join requests:', error);
+      throw error;
+    }
+  }
+
+  // Handle join request (approve/reject)
+  async handleJoinRequest(requestId, action, crewId = null) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Get the request
+      const requestDoc = await getDoc(doc(db, 'joinRequests', requestId));
+      if (!requestDoc.exists()) {
+        throw new Error('Join request not found');
+      }
+
+      const requestData = requestDoc.data();
+      const crewIdToUse = crewId || requestData.crewId;
+
+      // Ensure creator has proper membership (fixes legacy crews)
+      await this.ensureCreatorMembership(crewIdToUse);
+
+      // Verify user is crew owner/admin
+      const crewDoc = await getDoc(doc(db, 'crews', crewIdToUse));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      
+      // Check if user has permission to handle join requests
+      let hasPermission = false;
+      
+      // Crew creators always have permission
+      if (crewData.createdBy === user.uid) {
+        hasPermission = true;
+      } else {
+        // Check membership permissions for non-creators
+        const membershipQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', crewIdToUse),
+          where('isActive', '==', true)
+        );
+        const membershipSnapshot = await getDocs(membershipQuery);
+        
+        if (!membershipSnapshot.empty) {
+          const membership = membershipSnapshot.docs[0].data();
+          // Allow admins or moderators to handle join requests
+          if (membership.role === 'admin' || membership.role === 'moderator') {
+            hasPermission = true;
+          }
+        }
+      }
+      
+      if (!hasPermission) {
+        throw new Error('Only crew owners and admins can handle join requests');
+      }
+
+      // Update request status
+      await updateDoc(doc(db, 'joinRequests', requestId), {
+        status: action,
+        handledBy: user.uid,
+        handledAt: serverTimestamp()
+      });
+
+      // If approved, add user to crew
+      if (action === 'approved') {
+        const membershipData = {
+          userId: requestData.userId,
+          crewId: crewIdToUse,
+          role: 'member',
+          joinedAt: serverTimestamp(),
+          isActive: true,
+          canInvite: false,
+          canModerate: false,
+        };
+
+        await addDoc(collection(db, 'memberships'), membershipData);
+
+        // Update crew member count if needed
+        const currentMembers = crewData.members || [];
+        if (!currentMembers.includes(requestData.userId)) {
+          await updateDoc(doc(db, 'crews', crewIdToUse), {
+            members: [...currentMembers, requestData.userId],
+            memberCount: (crewData.memberCount || 0) + 1,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+
+      return { success: true, action };
+    } catch (error) {
+      console.error('Error handling join request:', error);
+      throw error;
+    }
+  }
+
+  // Send invitation to join crew by email
+  async sendInvitation(crewId, userEmail, role = 'member', message = '') {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Ensure creator has proper membership (fixes legacy crews)
+      await this.ensureCreatorMembership(crewId);
+
+      // Verify user can invite
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      
+      // Check if user has permission to send invitations
+      let hasPermission = false;
+      
+      // Crew creators always have permission
+      if (crewData.createdBy === user.uid) {
+        hasPermission = true;
+      } else {
+        // Check membership permissions for non-creators
+        const membershipQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', crewId),
+          where('isActive', '==', true)
+        );
+        const membershipSnapshot = await getDocs(membershipQuery);
+        
+        if (!membershipSnapshot.empty) {
+          const membership = membershipSnapshot.docs[0].data();
+          // Allow admins, moderators, or anyone with explicit canInvite permission
+          if (membership.role === 'admin' || membership.role === 'moderator' || membership.canInvite === true) {
+            hasPermission = true;
+          }
+        }
+      }
+      
+      if (!hasPermission) {
+        throw new Error('You do not have permission to invite members to this crew');
+      }
+
+      // Check if user exists
       const userQuery = query(
         collection(db, 'users'),
         where('email', '==', userEmail)
@@ -636,37 +901,234 @@ class CrewConnectService {
       const userSnapshot = await getDocs(userQuery);
       
       if (userSnapshot.empty) {
-        throw new Error('User not found with this email');
+        throw new Error('User not found with this email. Please ensure they have registered on the platform.');
       }
 
       const userData = userSnapshot.docs[0].data();
-      const newMemberUid = userData.firebaseUID;
+      const invitedUserId = userData.firebaseUID;
 
       // Check if user is already a member
-      if (members.includes(newMemberUid)) {
+      const existingMembership = query(
+        collection(db, 'memberships'),
+        where('userId', '==', invitedUserId),
+        where('crewId', '==', crewId),
+        where('isActive', '==', true)
+      );
+      const existingSnapshot = await getDocs(existingMembership);
+      
+      if (!existingSnapshot.empty) {
         throw new Error('User is already a member of this crew');
       }
 
-      // Add user to crew members
+      // Check if there's already a pending invitation
+      const pendingInvitation = query(
+        collection(db, 'invitations'),
+        where('invitedUserId', '==', invitedUserId),
+        where('crewId', '==', crewId),
+        where('status', '==', 'pending')
+      );
+      const pendingSnapshot = await getDocs(pendingInvitation);
+      
+      if (!pendingSnapshot.empty) {
+        throw new Error('Invitation already pending for this user');
+      }
+
+      const senderProfile = await this.getUserProfile();
+      const invitationData = {
+        crewId,
+        crewName: crewData.name,
+        invitedUserId,
+        invitedUserEmail: userEmail,
+        invitedUserName: userData.displayName || userData.username,
+        inviterId: user.uid,
+        inviterName: senderProfile?.displayName || senderProfile?.username || 'Unknown',
+        role,
+        message,
+        status: 'pending',
+        createdAt: serverTimestamp()
+      };
+
+      console.log('📩 DEBUG: Creating invitation with data:', invitationData);
+      const invitationRef = await addDoc(collection(db, 'invitations'), invitationData);
+      console.log('📩 DEBUG: Invitation created successfully with ID:', invitationRef.id);
+      
+      return { id: invitationRef.id, ...invitationData };
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      throw error;
+    }
+  }
+
+  // Get invitations for current user
+  async getUserInvitations(status = 'pending') {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      const invitationsQuery = query(
+        collection(db, 'invitations'),
+        where('invitedUserId', '==', user.uid),
+        where('status', '==', status),
+        orderBy('createdAt', 'desc')
+      );
+
+      const snapshot = await getDocs(invitationsQuery);
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      console.error('Error getting user invitations:', error);
+      throw error;
+    }
+  }
+
+  // Handle invitation (accept/decline)
+  async handleInvitation(invitationId, action) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Get the invitation
+      const invitationDoc = await getDoc(doc(db, 'invitations', invitationId));
+      if (!invitationDoc.exists()) {
+        throw new Error('Invitation not found');
+      }
+
+      const invitationData = invitationDoc.data();
+
+      // Verify this invitation is for the current user
+      if (invitationData.invitedUserId !== user.uid) {
+        throw new Error('This invitation is not for you');
+      }
+
+      // Update invitation status
+      await updateDoc(doc(db, 'invitations', invitationId), {
+        status: action,
+        handledAt: serverTimestamp()
+      });
+
+      // If accepted, add user to crew
+      if (action === 'accepted') {
+        const membershipData = {
+          userId: user.uid,
+          crewId: invitationData.crewId,
+          role: invitationData.role || 'member',
+          joinedAt: serverTimestamp(),
+          isActive: true,
+          canInvite: ['admin', 'moderator'].includes(invitationData.role),
+          canModerate: ['admin', 'moderator'].includes(invitationData.role),
+        };
+
+        await addDoc(collection(db, 'memberships'), membershipData);
+
+        // Update crew members list
+        const crewDoc = await getDoc(doc(db, 'crews', invitationData.crewId));
+        if (crewDoc.exists()) {
+          const crewData = crewDoc.data();
+          const currentMembers = crewData.members || [];
+          if (!currentMembers.includes(user.uid)) {
+            await updateDoc(doc(db, 'crews', invitationData.crewId), {
+              members: [...currentMembers, user.uid],
+              memberCount: (crewData.memberCount || 0) + 1,
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+      }
+
+      return { success: true, action };
+    } catch (error) {
+      console.error('Error handling invitation:', error);
+      throw error;
+    }
+  }
+
+  // Modified joinCrew method - now sends a request instead of direct join
+  async requestToJoinCrew(crewId, message = '') {
+    // For public crews, this might still allow direct join
+    // For private crews, this sends a request
+    try {
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      
+      // If crew is public and allows auto-join, join directly
+      if (crewData.isPublic && crewData.autoJoin !== false) {
+        return await this.joinCrew(crewId);
+      } else {
+        // Send join request
+        return await this.sendJoinRequest(crewId, message);
+      }
+    } catch (error) {
+      console.error('Error requesting to join crew:', error);
+      throw error;
+    }
+  }
+
+  // Updated addMemberToCrew - now sends invitation instead of direct add
+  async addMemberToCrew(crewId, userEmail, role = 'member', message = '') {
+    // This now sends an invitation instead of directly adding
+    return await this.sendInvitation(crewId, userEmail, role, message);
+  }
+
+  // Remove member from crew (only by crew owner)
+  async removeMember(crewId, memberUid) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Get crew data to verify ownership
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      if (crewData.createdBy !== user.uid) {
+        throw new Error('Access denied: Only crew owners can remove members');
+      }
+
+      // Cannot remove the creator themselves
+      if (memberUid === crewData.createdBy) {
+        throw new Error('Cannot remove the crew creator');
+      }
+
+      // Get current members list
+      const members = crewData.members || [];
+      if (!members.includes(memberUid)) {
+        throw new Error('User is not a member of this crew');
+      }
+
+      // Remove from crew members list
+      const updatedMembers = members.filter(uid => uid !== memberUid);
       await updateDoc(doc(db, 'crews', crewId), {
-        members: [...members, newMemberUid],
+        members: updatedMembers,
         updatedAt: Timestamp.now()
       });
 
-      // Create membership record
-      const membershipRef = doc(collection(db, 'memberships'));
-      await setDoc(membershipRef, {
-        id: membershipRef.id,
-        userId: newMemberUid,
-        crewId: crewId,
-        role: 'member',
-        isActive: true,
-        joinedAt: Timestamp.now()
-      });
+      // Deactivate membership record
+      const membershipQuery = query(
+        collection(db, 'memberships'),
+        where('userId', '==', memberUid),
+        where('crewId', '==', crewId),
+        where('isActive', '==', true)
+      );
+      const membershipSnapshot = await getDocs(membershipQuery);
+      
+      for (const membershipDoc of membershipSnapshot.docs) {
+        await updateDoc(membershipDoc.ref, {
+          isActive: false,
+          leftAt: Timestamp.now()
+        });
+      }
 
-      return { success: true, memberName: userData.displayName || userData.username };
+      return { success: true };
     } catch (error) {
-      console.error('Error adding member to crew:', error);
+      console.error('Error removing member from crew:', error);
       throw error;
     }
   }
@@ -716,6 +1178,128 @@ class CrewConnectService {
     } catch (error) {
       console.error('Error getting crew members:', error);
       throw error;
+    }
+  }
+
+  // Utility method to ensure crew creator has proper membership
+  async ensureCreatorMembership(crewId) {
+    try {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) return;
+
+      const crewData = crewDoc.data();
+      
+      // Only fix membership for actual creators
+      if (crewData.createdBy !== user.uid) return;
+
+      // Check if creator already has a membership record
+      const membershipQuery = query(
+        collection(db, 'memberships'),
+        where('userId', '==', user.uid),
+        where('crewId', '==', crewId),
+        where('isActive', '==', true)
+      );
+      const membershipSnapshot = await getDocs(membershipQuery);
+
+      // If no membership exists, create one
+      if (membershipSnapshot.empty) {
+        const membershipData = {
+          userId: user.uid,
+          crewId: crewId,
+          role: 'admin',
+          joinedAt: serverTimestamp(),
+          isActive: true,
+          canInvite: true,
+          canModerate: true
+        };
+
+        await addDoc(collection(db, 'memberships'), membershipData);
+        
+        // Also ensure they're in the crew members array
+        const currentMembers = crewData.members || [];
+        if (!currentMembers.includes(user.uid)) {
+          await updateDoc(doc(db, 'crews', crewId), {
+            members: [...currentMembers, user.uid],
+            memberCount: Math.max((crewData.memberCount || 0), currentMembers.length + 1),
+            updatedAt: serverTimestamp()
+          });
+        }
+        
+        console.log('Created missing membership record for crew creator');
+      } else {
+        // Check if existing membership has proper permissions
+        const membership = membershipSnapshot.docs[0].data();
+        if (!membership.canInvite || membership.role !== 'admin') {
+          await updateDoc(membershipSnapshot.docs[0].ref, {
+            role: 'admin',
+            canInvite: true,
+            canModerate: true,
+            updatedAt: serverTimestamp()
+          });
+          console.log('Updated creator membership permissions');
+        }
+      }
+    } catch (error) {
+      console.error('Error ensuring creator membership:', error);
+    }
+  }
+
+  // Utility method to fix membership inconsistencies
+  async validateAndFixMembershipConsistency(crewId) {
+    try {
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) return;
+
+      const crewData = crewDoc.data();
+      const crewMembers = new Set(crewData.members || []);
+
+      // Get all active memberships for this crew
+      const membershipQuery = query(
+        collection(db, 'memberships'),
+        where('crewId', '==', crewId),
+        where('isActive', '==', true)
+      );
+      const membershipSnapshot = await getDocs(membershipQuery);
+      
+      const membershipUserIds = new Set();
+      membershipSnapshot.docs.forEach(doc => {
+        membershipUserIds.add(doc.data().userId);
+      });
+
+      // Find discrepancies
+      const missingFromMembers = [...membershipUserIds].filter(id => !crewMembers.has(id));
+      const missingFromMemberships = [...crewMembers].filter(id => !membershipUserIds.has(id));
+
+      let needsUpdate = false;
+      let updatedMembers = [...crewMembers];
+
+      // Add missing members to crew members array
+      if (missingFromMembers.length > 0) {
+        updatedMembers = [...new Set([...updatedMembers, ...missingFromMembers])];
+        needsUpdate = true;
+        console.log('Fixed missing members in crew array:', missingFromMembers);
+      }
+
+      // Remove orphaned entries from crew members array (optional - might want to keep for audit)
+      // For now, we'll just log them
+      if (missingFromMemberships.length > 0) {
+        console.log('Found users in crew members array without membership:', missingFromMemberships);
+      }
+
+      // Update crew document if needed
+      if (needsUpdate) {
+        await updateDoc(doc(db, 'crews', crewId), {
+          members: updatedMembers,
+          memberCount: updatedMembers.length,
+          updatedAt: serverTimestamp()
+        });
+      }
+
+    } catch (error) {
+      console.error('Error validating membership consistency:', error);
     }
   }
 }

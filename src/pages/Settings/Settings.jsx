@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import {
@@ -70,20 +70,20 @@ const Settings = () => {
   }, []);
 
   const handleProfileVisibilityChange = useCallback((e) => {
-    handlePrivacySettingChange('profileVisibility', e.target.value);
-  }, [handlePrivacySettingChange]);
+    setPrivacySettings(prev => ({ ...prev, profileVisibility: e.target.value }));
+  }, []);
 
   const handleDataCollectionChange = useCallback((e) => {
-    handlePrivacySettingChange('dataCollection', e.target.checked);
-  }, [handlePrivacySettingChange]);
+    setPrivacySettings(prev => ({ ...prev, dataCollection: e.target.checked }));
+  }, []);
 
   const handleActivityStatusChange = useCallback((e) => {
-    handlePrivacySettingChange('activityStatus', e.target.checked);
-  }, [handlePrivacySettingChange]);
+    setPrivacySettings(prev => ({ ...prev, activityStatus: e.target.checked }));
+  }, []);
 
   const handleFriendRequestsChange = useCallback((e) => {
-    handlePrivacySettingChange('friendRequests', e.target.checked);
-  }, [handlePrivacySettingChange]);
+    setPrivacySettings(prev => ({ ...prev, friendRequests: e.target.checked }));
+  }, []);
 
   // Language settings handlers
   const handleLanguageChange = useCallback((e) => {
@@ -224,7 +224,7 @@ const Settings = () => {
     </div>
   );
 
-  const SecuritySettings = () => (
+  const SecuritySettings = useMemo(() => (
     <div className="space-y-6">
       <div className="bg-white/5 rounded-xl border border-white/10 p-6">
         <h4 className="text-lg font-semibold text-white mb-4">Change Password</h4>
@@ -290,7 +290,16 @@ const Settings = () => {
         </form>
       </div>
     </div>
-  );
+  ), [
+    handlePasswordChange,
+    showCurrentPassword,
+    passwordForm,
+    handleCurrentPasswordChange,
+    showNewPassword,
+    handleNewPasswordChange,
+    handleConfirmPasswordChange,
+    isLoading
+  ]);
 
   const NotificationSettings = () => (
     <div className="space-y-6">
@@ -549,7 +558,7 @@ const Settings = () => {
       case 'profile':
         return <ProfileSettings />;
       case 'security':
-        return <SecuritySettings />;
+        return SecuritySettings;
       case 'notifications':
         return <NotificationSettings />;
       case 'privacy':

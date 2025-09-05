@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_jwt_extended import JWTManager, jwt_required, create_access_token, get_jwt_identity
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import os
@@ -16,7 +17,7 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///stillstanding.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///stillstanding.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
@@ -24,6 +25,7 @@ app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 # Initialize extensions
 db = SQLAlchemy(app)
 jwt = JWTManager(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 CORS(app, origins=os.getenv('CORS_ORIGINS', 'http://localhost:3000').split(','))
 
 # Redis connection for real-time features
@@ -503,5 +505,35 @@ def invalid_token_callback(error):
 def missing_token_callback(error):
     return jsonify({'error': 'Authorization token is required'}), 401
 
+# Socket.IO Event Handlers
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+    emit('connected', {'data': 'Connected to server'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
+@socketio.on('join_crew')
+def handle_join_crew(crew_id):
+    join_room(crew_id)
+    emit('joined_crew', {'crew_id': crew_id})
+    print(f'Client joined crew room: {crew_id}')
+
+@socketio.on('leave_crew')
+def handle_leave_crew(crew_id):
+    leave_room(crew_id)
+    emit('left_crew', {'crew_id': crew_id})
+    print(f'Client left crew room: {crew_id}')
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    crew_id = data.get('crewId')
+    if crew_id:
+        # Broadcast the message to all clients in the crew room
+        socketio.emit('new_message', data, to=crew_id)
+        print(f'Message sent to crew {crew_id}')
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000, debug=True)

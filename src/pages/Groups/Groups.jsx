@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import { useNotifications } from '../../contexts/NotificationContext';
 import crewConnectService from '../../services/crewConnectService';
 import {
   Users,
@@ -25,6 +26,7 @@ import {
 
 const Groups = () => {
   const { currentUser } = useAuth();
+  const { sendMemberJoined } = useNotifications();
   const [activeTab, setActiveTab] = useState('my-groups');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -143,12 +145,41 @@ const Groups = () => {
       await crewConnectService.joinCrew(groupId);
       setSuccess('Successfully joined the group!');
       
+      // Send notification to existing group members
+      try {
+        await sendMemberJoined(groupId, currentUser?.uid);
+      } catch (notificationError) {
+        console.error('Failed to send member joined notifications:', notificationError);
+      }
+      
       // Refresh data
       await fetchData();
       
     } catch (error) {
       console.error('Error joining group:', error);
       setError(error.message || 'Failed to join group');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (groupId, memberId) => {
+    try {
+      setError('');
+      setLoading(true);
+      
+      await crewConnectService.removeMember(groupId, memberId);
+      setSuccess('Member removed successfully!');
+      
+      // Refresh the member list
+      await handleViewMembers(groupId);
+      
+      // Refresh the groups data
+      await fetchData();
+      
+    } catch (error) {
+      console.error('Error removing member:', error);
+      setError(error.message || 'Failed to remove member');
     } finally {
       setLoading(false);
     }
@@ -188,7 +219,7 @@ const Groups = () => {
       }
 
       const result = await crewConnectService.addMemberToCrew(addMemberGroupId, memberEmail.trim());
-      setSuccess(`${result.memberName} has been added to the group!`);
+      setSuccess(`Invitation sent to ${memberEmail.trim()}! They will need to accept the invitation to join.`);
       setShowAddMemberModal(false);
       setAddMemberGroupId(null);
       setMemberEmail('');
@@ -197,8 +228,8 @@ const Groups = () => {
       await fetchData();
       
     } catch (error) {
-      console.error('Error adding member:', error);
-      setError(error.message || 'Failed to add member');
+      console.error('Error sending invitation:', error);
+      setError(error.message || 'Failed to send invitation');
     } finally {
       setLoading(false);
     }
@@ -233,72 +264,80 @@ const Groups = () => {
     
     return (
       <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6 hover:bg-white/10 transition-all duration-200">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-              {group.avatarUrl ? (
-                <img
-                  src={group.avatarUrl}
-                  alt={group.name}
-                  className="w-12 h-12 rounded-lg object-cover"
-                />
-              ) : (
-                <Users className="w-6 h-6 text-white" />
-              )}
-            </div>
-            
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-1">
-                <h3 className="font-semibold text-white">{group.name}</h3>
-                {group.isPublic === false ? (
-                  <Lock className="w-4 h-4 text-yellow-400" />
+        <div className="flex flex-col space-y-4">
+          {/* Header Section */}
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-3 flex-1">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                {group.avatarUrl ? (
+                  <img
+                    src={group.avatarUrl}
+                    alt={group.name}
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
                 ) : (
-                  <Globe className="w-4 h-4 text-green-400" />
+                  <Users className="w-6 h-6 text-white" />
                 )}
-                {group.membership?.role === 'admin' && <Crown className="w-4 h-4 text-yellow-400" />}
-                {group.membership?.role === 'moderator' && <Shield className="w-4 h-4 text-blue-400" />}
               </div>
-              <p className="text-gray-400 text-sm mb-2">{group.description}</p>
-              <div className="flex items-center space-x-4 text-xs text-gray-500">
-                <span className="flex items-center space-x-1">
-                  <Users className="w-3 h-3" />
-                  <span>{memberCount} members</span>
-                </span>
-                {isUserMember && group.recentMessages && (
-                  <span className="flex items-center space-x-1">
-                    <MessageCircle className="w-3 h-3" />
-                    <span>{group.recentMessages} messages</span>
-                  </span>
-                )}
-                {group.createdAt && (
-                  <span className="flex items-center space-x-1">
-                    <Calendar className="w-3 h-3" />
-                    <span>{new Date(group.createdAt?.toDate ? group.createdAt.toDate() : group.createdAt).toLocaleDateString()}</span>
-                  </span>
-                )}
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center space-x-2 mb-1">
+                  <h3 className="font-semibold text-white truncate">{group.name}</h3>
+                  {group.isPublic === false ? (
+                    <Lock className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                  ) : (
+                    <Globe className="w-4 h-4 text-green-400 flex-shrink-0" />
+                  )}
+                  {group.membership?.role === 'admin' && <Crown className="w-4 h-4 text-yellow-400 flex-shrink-0" />}
+                  {group.membership?.role === 'moderator' && <Shield className="w-4 h-4 text-blue-400 flex-shrink-0" />}
+                </div>
+                <p className="text-gray-400 text-sm mb-2 line-clamp-2">{group.description}</p>
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
+
+          {/* Stats Section */}
+          <div className="flex items-center space-x-4 text-xs text-gray-500">
+            <span className="flex items-center space-x-1">
+              <Users className="w-3 h-3" />
+              <span>{memberCount} members</span>
+            </span>
+            {isUserMember && group.recentMessages && (
+              <span className="flex items-center space-x-1">
+                <MessageCircle className="w-3 h-3" />
+                <span>{group.recentMessages} messages</span>
+              </span>
+            )}
+            {group.createdAt && (
+              <span className="flex items-center space-x-1">
+                <Calendar className="w-3 h-3" />
+                <span>{new Date(group.createdAt?.toDate ? group.createdAt.toDate() : group.createdAt).toLocaleDateString()}</span>
+              </span>
+            )}
+          </div>
+
+          {/* Action Buttons Section */}
+          <div className="pt-3 border-t border-white/10">
             {showJoinButton && (
               <button
                 onClick={() => handleJoinGroup(group.id)}
                 disabled={loading}
-                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50"
               >
-                {loading ? 'Joining...' : 'Join'}
+                {loading ? 'Joining...' : 'Join Group'}
               </button>
             )}
             
             {isUserMember && (
-              <>
+              <div className="grid grid-cols-2 gap-2">
+                {/* First Row - View Members & Add Member */}
                 <button
                   onClick={() => handleViewMembers(group.id)}
-                  className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-500 transition-colors"
+                  className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-500 transition-colors flex items-center justify-center space-x-2 text-sm"
                   title="View Members"
                 >
                   <Users className="w-4 h-4" />
+                  <span>Members</span>
                 </button>
                 
                 <button
@@ -306,39 +345,44 @@ const Groups = () => {
                     setAddMemberGroupId(group.id);
                     setShowAddMemberModal(true);
                   }}
-                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors"
+                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors flex items-center justify-center space-x-2 text-sm"
                   title="Add Member"
                 >
                   <UserPlus className="w-4 h-4" />
+                  <span>Add</span>
                 </button>
-                
+
+                {/* Second Row - Chat & Delete (if owner) */}
                 <Link
                   to={`/chat/${group.id}`}
-                  className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg font-medium hover:from-green-600 hover:to-teal-600 transition-colors flex items-center space-x-2"
+                  className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-3 py-2 rounded-lg font-medium hover:from-green-600 hover:to-teal-600 transition-colors flex items-center justify-center space-x-2 text-sm"
                 >
                   <MessageCircle className="w-4 h-4" />
                   <span>Chat</span>
                 </Link>
                 
-                {group.createdBy === currentUser?.uid && (
+                {group.createdBy === currentUser?.uid ? (
                   <button
                     onClick={() => {
                       setDeleteGroupId(group.id);
                       setShowDeleteConfirm(true);
                     }}
-                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors"
+                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors flex items-center justify-center space-x-2 text-sm"
                     title="Delete Group"
                   >
                     <X className="w-4 h-4" />
+                    <span>Delete</span>
                   </button>
+                ) : (
+                  <div></div> // Empty div to maintain grid layout
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
         
         {isUserMember && group.lastActivity && (
-          <div className="border-t border-white/10 pt-3">
+          <div className="border-t border-white/10 pt-3 mt-3">
             <p className="text-xs text-gray-500">
               Last activity: {group.lastActivity}
             </p>
@@ -680,21 +724,41 @@ const Groups = () => {
                 </button>
               </div>
 
-              <div className="space-y-3">
-                {selectedGroupMembers.map((member) => (
-                  <div key={member.uid} className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <p className="font-medium text-white">{member.displayName}</p>
-                        {member.isCreator && <Crown className="w-4 h-4 text-yellow-400" />}
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {selectedGroupMembers.map((member) => {
+                  const isCurrentUser = member.uid === currentUser?.uid;
+                  const isGroupOwner = selectedGroupMembers.find(m => m.isCreator)?.uid === currentUser?.uid;
+                  const isMemberCreator = member.isCreator;
+                  
+                  return (
+                    <div key={member.uid} className="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                          <User className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <p className="font-medium text-white">{member.displayName}</p>
+                            {isMemberCreator && <Crown className="w-4 h-4 text-yellow-400" />}
+                          </div>
+                          <p className="text-sm text-gray-400">@{member.username}</p>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-400">@{member.username}</p>
+                      
+                      {/* Remove button - only show for group owners, not for themselves or other creators */}
+                      {isGroupOwner && !isCurrentUser && !isMemberCreator && (
+                        <button
+                          onClick={() => handleRemoveMember(selectedGroupId, member.uid)}
+                          disabled={loading}
+                          className="text-red-400 hover:text-red-300 transition-colors disabled:opacity-50"
+                          title="Remove member"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
