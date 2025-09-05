@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import ProfilePictureUpload from '../../components/ProfilePictureUpload';
+import crewConnectService from '../../services/crewConnectService';
 import {
   User,
   Mail,
@@ -75,6 +77,27 @@ const Profile = () => {
       location: userData?.location || '',
       photoURL: userData?.photoURL || currentUser.photoURL || ''
     });
+  };
+
+  const handleProfilePictureUpdate = async (newImageUrl) => {
+    try {
+      // Update in Firestore through crewConnectService
+      await crewConnectService.updateUserProfile(currentUser.uid, {
+        profilePicture: newImageUrl
+      });
+      
+      // Update local state
+      setUserData(prev => ({
+        ...prev,
+        profilePicture: newImageUrl,
+        photoURL: newImageUrl
+      }));
+      
+      console.log('Profile picture updated successfully');
+    } catch (error) {
+      console.error('Error updating profile picture:', error);
+      throw error;
+    }
   };
 
   const stats = [
@@ -171,22 +194,13 @@ const Profile = () => {
           <div className="px-8 pb-8">
             <div className="flex items-start -mt-16 mb-6">
               <div className="relative">
-                <div className="w-32 h-32 bg-white/10 backdrop-blur-xl rounded-full border-4 border-white/20 flex items-center justify-center overflow-hidden">
-                  {editForm.photoURL || currentUser.photoURL ? (
-                    <img
-                      src={editForm.photoURL || currentUser.photoURL}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <User className="w-12 h-12 text-white/70" />
-                  )}
-                </div>
-                {isEditing && (
-                  <button className="absolute bottom-2 right-2 bg-blue-600 hover:bg-blue-700 p-2 rounded-full transition-colors">
-                    <Camera className="w-4 h-4 text-white" />
-                  </button>
-                )}
+                <ProfilePictureUpload
+                  currentImageUrl={userData?.profilePicture || userData?.photoURL || currentUser.photoURL}
+                  onImageUpdate={handleProfilePictureUpdate}
+                  userName={userData?.displayName || currentUser.email}
+                  size="xlarge"
+                  showUploadButton={true}
+                />
               </div>
               
               <div className="ml-6 flex-1 mt-16">

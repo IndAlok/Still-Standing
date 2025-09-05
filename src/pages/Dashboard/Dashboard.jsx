@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
   const [recentMessages, setRecentMessages] = useState([]);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [stats, setStats] = useState({
     totalGroups: 0,
     totalMessages: 0,
@@ -35,66 +36,55 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      if (currentUser) {
-        try {
-          setLoading(true);
-          
-          // Get user data
-          const data = await getUserData();
-          setUserData(data);
+      console.log('Dashboard useEffect triggered, currentUser:', currentUser?.uid);
+      
+      if (!currentUser) {
+        console.log('No current user, setting loading to false');
+        setLoading(false);
+        return;
+      }
 
-          // Get user's groups
-          const groups = await crewConnectService.getUserCrews();
-          setUserGroups(groups);
-
-          // Calculate stats
-          let totalMessages = 0;
-          let onlineMembers = 0;
-          const recentMessagesData = [];
-
-          // Get recent messages from each group
-          for (const group of groups.slice(0, 3)) { // Limit to first 3 groups for recent messages
-            try {
-              const messages = await crewConnectService.getCrewMessages(group.id, 10);
-              const members = await crewConnectService.getCrewMembers(group.id);
-              
-              totalMessages += messages.length;
-              onlineMembers += members.filter(member => member.user.isOnline).length;
-              
-              if (messages.length > 0) {
-                recentMessagesData.push({
-                  groupId: group.id,
-                  groupName: group.name,
-                  lastMessage: messages[messages.length - 1],
-                  memberCount: members.length,
-                  onlineCount: members.filter(member => member.user.isOnline).length
-                });
-              }
-            } catch (error) {
-              console.error(`Error fetching data for group ${group.id}:`, error);
-            }
-          }
-
-          setRecentMessages(recentMessagesData);
-          setStats({
-            totalGroups: groups.length,
-            totalMessages,
-            onlineMembers,
-            recentActivity: recentMessagesData.filter(rm => 
-              rm.lastMessage && new Date() - rm.lastMessage.sentAt?.toDate() < 3600000
-            ).length // Messages in last hour
-          });
-
-        } catch (error) {
-          console.error('Error fetching dashboard data:', error);
-        } finally {
-          setLoading(false);
-        }
+      try {
+        console.log('Setting loading to true and basic user data');
+        setLoading(true);
+        
+        // Set basic user data immediately without any external calls
+        const basicUserData = {
+          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+          email: currentUser.email,
+          photoURL: currentUser.photoURL,
+          uid: currentUser.uid,
+          isOnline: true
+        };
+        
+        setUserData(basicUserData);
+        console.log('Basic user data set:', basicUserData);
+        
+        // Set default empty states for other data
+        setUserGroups([]);
+        setRecentMessages([]);
+        setStats({
+          totalGroups: 0,
+          totalMessages: 0,
+          onlineMembers: 1,
+          recentActivity: 0
+        });
+        
+        console.log('Dashboard data initialization completed');
+        
+      } catch (error) {
+        console.error('Error in dashboard data fetch:', error);
+      } finally {
+        console.log('Setting loading to false');
+        setLoading(false);
       }
     };
 
-    fetchDashboardData();
-  }, [currentUser, getUserData]);
+    // Add a small delay to prevent rapid re-renders
+    const timeoutId = setTimeout(fetchDashboardData, 100);
+    return () => clearTimeout(timeoutId);
+    
+  }, [currentUser?.uid]); // Only depend on user ID to prevent unnecessary re-renders
 
   const handleLogout = async () => {
     try {
@@ -215,9 +205,9 @@ const Dashboard = () => {
               
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                  {userData.photoURL ? (
+                  {userData?.photoURL ? (
                     <img
-                      src={userData.photoURL}
+                      src={userData?.photoURL}
                       alt="Profile"
                       className="w-8 h-8 rounded-full object-cover"
                     />
@@ -226,7 +216,7 @@ const Dashboard = () => {
                   )}
                 </div>
                 <span className="text-white font-medium">
-                  {userData.displayName || currentUser.email}
+                  {userData?.displayName || currentUser?.email}
                 </span>
                 <button
                   onClick={handleLogout}
@@ -245,7 +235,7 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="mb-8">
           <h2 className="text-3xl font-bold text-white mb-2">
-            Welcome back, {userData.displayName || 'User'}!
+            Welcome back, {userData?.displayName || currentUser?.email?.split('@')[0] || 'User'}!
           </h2>
           <p className="text-gray-400">
             Here's what's happening with your groups and conversations.

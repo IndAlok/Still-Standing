@@ -48,27 +48,20 @@ export function AuthProvider({ children }) {
         const newProfile = await crewConnectService.createUserProfile({
           username: user.email.split('@')[0],
           displayName: user.displayName || user.email.split('@')[0],
-          profilePictureUrl: user.photoURL,
-          bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`
+          email: user.email,
+          profilePicture: user.photoURL || null,
+          bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`,
+          createdAt: new Date(),
+          lastSeen: new Date()
         });
         setUserProfile(newProfile);
       }
     } catch (error) {
       console.error('Error handling user profile:', error);
-      // Create a minimal local profile if Firestore fails
-      setUserProfile({
-        firebaseUID: user.uid,
-        username: user.email.split('@')[0],
-        displayName: user.displayName || user.email.split('@')[0],
-        email: user.email,
-        profilePictureUrl: user.photoURL,
-        bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`,
-        createdAt: new Date(),
-        isOnline: true
-      });
-      setError('Database connection issues. Some features may be limited.');
+      setError('Failed to create user profile');
     }
   };
+  
   // Sign up with email and password
   const signup = async (email, password, username) => {
     try {
