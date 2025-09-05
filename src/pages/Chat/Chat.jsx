@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
+import crewConnectService from '../../services/crewConnectService';
 import {
   Send,
   ArrowLeft,
@@ -16,6 +17,8 @@ import {
   Hash,
   Lock,
   Globe,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
 const Chat = () => {
@@ -24,66 +27,65 @@ const Chat = () => {
   const messagesEndRef = useRef(null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
-  const [isTyping, setIsTyping] = useState(false);
-  const [onlineMembers, setOnlineMembers] = useState([]);
-
-  // Mock data - replace with Firebase real-time data
-  const groupInfo = {
-    id: groupId || '1',
-    name: 'Tech Team',
-    description: 'Daily discussions about development and technology',
-    memberCount: 12,
-    isPrivate: false,
-    members: [
-      { id: '1', name: 'John Doe', avatar: null, isOnline: true, lastSeen: null },
-      { id: '2', name: 'Jane Smith', avatar: null, isOnline: true, lastSeen: null },
-      { id: '3', name: 'Mike Johnson', avatar: null, isOnline: false, lastSeen: '2 hours ago' },
-      { id: '4', name: 'Sarah Wilson', avatar: null, isOnline: true, lastSeen: null },
-    ]
-  };
-
-  const mockMessages = [
-    {
-      id: '1',
-      senderId: '2',
-      senderName: 'Jane Smith',
-      senderAvatar: null,
-      content: 'Hey everyone! How are you doing today?',
-      timestamp: new Date(Date.now() - 3600000),
-      type: 'text'
-    },
-    {
-      id: '2',
-      senderId: currentUser?.uid,
-      senderName: 'You',
-      senderAvatar: currentUser?.photoURL,
-      content: 'Doing great! Working on the new feature',
-      timestamp: new Date(Date.now() - 3000000),
-      type: 'text'
-    },
-    {
-      id: '3',
-      senderId: '1',
-      senderName: 'John Doe',
-      senderAvatar: null,
-      content: 'That sounds awesome! Let me know if you need any help',
-      timestamp: new Date(Date.now() - 1800000),
-      type: 'text'
-    },
-    {
-      id: '4',
-      senderId: '4',
-      senderName: 'Sarah Wilson',
-      senderAvatar: null,
-      content: 'I just finished the UI designs for the dashboard',
-      timestamp: new Date(Date.now() - 600000),
-      type: 'text'
-    }
-  ];
+  const [groupInfo, setGroupInfo] = useState(null);
+  const [groupMembers, setGroupMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+  const [showMembers, setShowMembers] = useState(false);
 
   useEffect(() => {
-    setMessages(mockMessages);
-    setOnlineMembers(groupInfo.members.filter(member => member.isOnline));
+    if (!groupId) {
+      setError('No group selected');
+      setLoading(false);
+      return;
+    }
+
+    const initializeChat = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Get user's groups to find this specific group
+        const userGroups = await crewConnectService.getUserCrews();
+        const currentGroup = userGroups.find(group => group.id === groupId);
+        
+        if (!currentGroup) {
+          setError('Group not found or you do not have access to this group');
+          return;
+        }
+
+        setGroupInfo(currentGroup);
+
+        // Get group members
+        const members = await crewConnectService.getCrewMembers(groupId);
+        setGroupMembers(members);
+
+        // Get messages
+        const groupMessages = await crewConnectService.getCrewMessages(groupId);
+        setMessages(groupMessages);
+
+        // Set up real-time listener for new messages
+        const unsubscribe = crewConnectService.subscribeToCrewMessages(groupId, (newMessages) => {
+          setMessages(newMessages);
+          setTimeout(scrollToBottom, 100); // Small delay to ensure messages are rendered
+        });
+
+        return () => unsubscribe && unsubscribe();
+      } catch (error) {
+        console.error('Error initializing chat:', error);
+        setError('Failed to load chat. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const cleanup = initializeChat();
+    return () => {
+      if (cleanup && typeof cleanup.then === 'function') {
+        cleanup.then(cleanupFn => cleanupFn && cleanupFn());
+      }
+    };
   }, [groupId]);
 
   useEffect(() => {
@@ -94,253 +96,296 @@ const Chat = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || sending) return;
 
-    const newMessage = {
-      id: Date.now().toString(),
-      senderId: currentUser.uid,
-      senderName: 'You',
-      senderAvatar: currentUser.photoURL,
-      content: message,
-      timestamp: new Date(),
-      type: 'text'
-    };
+    try {
+      setSending(true);
+      setError('');
+      
+      await crewConnectService.sendMessage(groupId, message.trim());
+      setMessage('');
+      
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setError('Failed to send message. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
 
-    setMessages(prev => [...prev, newMessage]);
-    setMessage('');
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
     
-    // TODO: Send message to Firebase
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    
+    return date.toLocaleDateString();
   };
 
-  const formatTime = (timestamp) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
-
-  const isOwnMessage = (senderId) => senderId === currentUser?.uid;
-
-  const MessageBubble = ({ msg, isOwn, showAvatar }) => (
-    <div className={`flex items-end space-x-2 mb-4 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-      {!isOwn && showAvatar && (
-        <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-          {msg.senderAvatar ? (
-            <img
-              src={msg.senderAvatar}
-              alt={msg.senderName}
-              className="w-8 h-8 rounded-full object-cover"
-            />
-          ) : (
-            <User className="w-4 h-4 text-white" />
-          )}
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-white/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/60">Loading chat...</p>
         </div>
-      )}
-      
-      {!isOwn && !showAvatar && <div className="w-8" />}
-      
-      <div className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'order-1' : ''}`}>
-        {!isOwn && showAvatar && (
-          <p className="text-xs text-gray-400 mb-1 ml-1">{msg.senderName}</p>
-        )}
-        
-        <div
-          className={`px-4 py-2 rounded-2xl ${
-            isOwn
-              ? 'bg-blue-600 text-white rounded-br-md'
-              : 'bg-white/10 text-white rounded-bl-md'
-          }`}
-        >
-          <p className="text-sm">{msg.content}</p>
-        </div>
-        
-        <p className={`text-xs text-gray-500 mt-1 ${isOwn ? 'text-right' : 'text-left'} px-1`}>
-          {formatTime(msg.timestamp)}
-        </p>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (error && !groupInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-white mb-2">Unable to Load Chat</h2>
+          <p className="text-gray-400 mb-4">{error}</p>
+          <Link 
+            to="/dashboard" 
+            className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors"
+          >
+            Back to Dashboard
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const onlineMembers = groupMembers.filter(member => member.user.isOnline);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex">
-      {/* Sidebar - Members List */}
-      <div className="hidden lg:block w-64 bg-white/5 backdrop-blur-xl border-r border-white/10">
-        <div className="p-4 border-b border-white/10">
-          <h3 className="text-lg font-semibold text-white mb-2">Members</h3>
-          <p className="text-sm text-gray-400">{groupInfo.memberCount} total</p>
-        </div>
-        
-        <div className="p-4">
-          <div className="space-y-3">
-            {groupInfo.members.map((member) => (
-              <div key={member.id} className="flex items-center space-x-3 p-2 hover:bg-white/5 rounded-lg transition-colors">
-                <div className="relative">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                    {member.avatar ? (
-                      <img
-                        src={member.avatar}
-                        alt={member.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <User className="w-4 h-4 text-white" />
-                    )}
-                  </div>
-                  {member.isOnline && (
-                    <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-900"></span>
-                  )}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium truncate">{member.name}</p>
-                  <p className="text-xs text-gray-400">
-                    {member.isOnline ? 'Online' : `Last seen ${member.lastSeen}`}
-                  </p>
-                </div>
+    <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
+      {/* Header */}
+      <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Link to="/groups" className="text-gray-400 hover:text-white transition-colors">
+              <ArrowLeft className="w-6 h-6" />
+            </Link>
+            
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                {groupInfo?.avatarUrl ? (
+                  <img
+                    src={groupInfo.avatarUrl}
+                    alt={groupInfo.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                  />
+                ) : (
+                  <Hash className="w-5 h-5 text-white" />
+                )}
               </div>
-            ))}
+              
+              <div>
+                <h1 className="text-lg font-semibold text-white flex items-center space-x-2">
+                  <span>{groupInfo?.name}</span>
+                  {groupInfo?.isPublic === false ? (
+                    <Lock className="w-4 h-4 text-yellow-400" />
+                  ) : (
+                    <Globe className="w-4 h-4 text-green-400" />
+                  )}
+                </h1>
+                <p className="text-sm text-gray-400">
+                  {groupMembers.length} members • {onlineMembers.length} online
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setShowMembers(true)}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+              title="View members"
+            >
+              <Users className="w-5 h-5" />
+            </button>
+            
+            <button className="p-2 text-gray-400 hover:text-white transition-colors">
+              <MoreVertical className="w-5 h-5" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Chat Header */}
-        <div className="bg-white/5 backdrop-blur-xl border-b border-white/10 p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/groups"
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors lg:hidden"
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </Link>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                  <Hash className="w-5 h-5 text-white" />
-                </div>
-                
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <h1 className="text-lg font-semibold text-white">{groupInfo.name}</h1>
-                    {groupInfo.isPrivate ? (
-                      <Lock className="w-4 h-4 text-yellow-400" />
-                    ) : (
-                      <Globe className="w-4 h-4 text-green-400" />
-                    )}
-                  </div>
-                  <p className="text-sm text-gray-400">
-                    {onlineMembers.length} of {groupInfo.memberCount} online
-                  </p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                <Search className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                <Phone className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                <Video className="w-5 h-5" />
-              </button>
-              <button className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
-                <MoreVertical className="w-5 h-5" />
-              </button>
-            </div>
+      {/* Error Message */}
+      {error && (
+        <div className="p-4 bg-red-500/10 border-b border-red-500/20 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 text-red-400" />
+            <span className="text-red-300 text-sm">{error}</span>
           </div>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-300">
+            <X className="w-4 h-4" />
+          </button>
         </div>
+      )}
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          <div className="text-center py-8">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 ? (
+          <div className="text-center py-12">
             <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <Hash className="w-8 h-8 text-white" />
             </div>
-            <h3 className="text-xl font-semibold text-white mb-2">Welcome to #{groupInfo.name}</h3>
-            <p className="text-gray-400 mb-4">{groupInfo.description}</p>
-            <p className="text-sm text-gray-500">This is the beginning of your conversation.</p>
+            <h3 className="text-lg font-semibold text-white mb-2">Welcome to #{groupInfo?.name}!</h3>
+            <p className="text-gray-400">This is the beginning of your conversation in this group.</p>
           </div>
-          
-          {messages.map((msg, index) => {
-            const isOwn = isOwnMessage(msg.senderId);
-            const prevMessage = messages[index - 1];
-            const showAvatar = !prevMessage || prevMessage.senderId !== msg.senderId || isOwn;
+        ) : (
+          messages.map((msg, index) => {
+            const isOwnMessage = msg.senderId === currentUser?.uid || msg.sender?.firebaseUID === currentUser?.uid;
+            const showAvatar = index === 0 || messages[index - 1].senderId !== msg.senderId;
             
             return (
-              <MessageBubble
-                key={msg.id}
-                msg={msg}
-                isOwn={isOwn}
-                showAvatar={showAvatar}
-              />
-            );
-          })}
-          
-          {isTyping && (
-            <div className="flex items-center space-x-2 text-gray-400 text-sm">
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+              <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} space-x-3`}>
+                {!isOwnMessage && (
+                  <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                    {showAvatar ? (
+                      msg.sender?.profilePictureUrl ? (
+                        <img
+                          src={msg.sender.profilePictureUrl}
+                          alt={msg.sender.displayName}
+                          className="w-8 h-8 object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-white" />
+                        </div>
+                      )
+                    ) : (
+                      <div className="w-8 h-8" /> // Spacer
+                    )}
+                  </div>
+                )}
+                
+                <div className={`max-w-xs lg:max-w-md ${isOwnMessage ? 'mr-2' : 'ml-0'}`}>
+                  {!isOwnMessage && showAvatar && (
+                    <p className="text-xs text-gray-400 mb-1 ml-1">
+                      {msg.sender?.displayName || msg.sender?.username || 'Unknown User'}
+                    </p>
+                  )}
+                  
+                  <div
+                    className={`rounded-2xl px-4 py-2 ${
+                      isOwnMessage
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                        : 'bg-white/10 text-white backdrop-blur-sm'
+                    }`}
+                  >
+                    <p className="text-sm">{msg.content}</p>
+                  </div>
+                  
+                  <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'ml-1'}`}>
+                    {formatMessageTime(msg.sentAt)}
+                  </p>
+                </div>
               </div>
-              <span>Someone is typing...</span>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
+            );
+          })
+        )}
+        <div ref={messagesEndRef} />
+      </div>
 
-        {/* Message Input */}
-        <div className="bg-white/5 backdrop-blur-xl border-t border-white/10 p-4">
-          <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
+      {/* Message Input */}
+      <div className="p-4 bg-white/5 backdrop-blur-xl border-t border-white/10">
+        <form onSubmit={handleSendMessage} className="flex items-center space-x-3">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={`Message #${groupInfo?.name}`}
+              disabled={sending}
+              className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 disabled:opacity-50"
+            />
             <button
               type="button"
-              className="p-2 text-gray-400 hover:text-white transition-colors"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
             >
-              <Paperclip className="w-5 h-5" />
+              <Smile className="w-5 h-5" />
             </button>
-            
-            <div className="flex-1 relative">
-              <textarea
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendMessage(e);
-                  }
-                }}
-                placeholder={`Message #${groupInfo.name}`}
-                rows="1"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 pr-12 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none max-h-32"
-                style={{ minHeight: '48px' }}
-              />
-              
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 text-gray-400 hover:text-white transition-colors"
-              >
-                <Smile className="w-5 h-5" />
-              </button>
+          </div>
+          
+          <button
+            type="submit"
+            disabled={!message.trim() || sending}
+            className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {sending ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Members Sidebar */}
+      {showMembers && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-end z-50">
+          <div className="w-80 h-full bg-slate-800/90 backdrop-blur-xl border-l border-white/10 overflow-y-auto">
+            <div className="p-4 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-white">Members ({groupMembers.length})</h3>
+                <button
+                  onClick={() => setShowMembers(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
-            <button
-              type="submit"
-              disabled={!message.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white p-3 rounded-xl transition-colors disabled:cursor-not-allowed"
-            >
-              <Send className="w-5 h-5" />
-            </button>
-          </form>
+            <div className="p-4 space-y-3">
+              {groupMembers.map((member) => (
+                <div key={member.user.id} className="flex items-center space-x-3">
+                  <div className="relative">
+                    {member.user.profilePictureUrl ? (
+                      <img
+                        src={member.user.profilePictureUrl}
+                        alt={member.user.displayName}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                    )}
+                    {member.user.isOnline && (
+                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-800 rounded-full"></div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <p className="text-white font-medium">{member.user.displayName || member.user.username}</p>
+                    <p className="text-xs text-gray-400 capitalize">{member.role}</p>
+                  </div>
+                  
+                  <div className="text-right">
+                    {member.user.isOnline ? (
+                      <span className="text-xs text-green-400">Online</span>
+                    ) : (
+                      <span className="text-xs text-gray-500">Offline</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

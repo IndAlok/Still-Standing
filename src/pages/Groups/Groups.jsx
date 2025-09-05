@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
+import crewConnectService from '../../services/crewConnectService';
 import {
   Users,
   Plus,
@@ -17,6 +18,9 @@ import {
   Shield,
   Eye,
   UserPlus,
+  X,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 
 const Groups = () => {
@@ -24,79 +28,13 @@ const Groups = () => {
   const [activeTab, setActiveTab] = useState('my-groups');
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showJoinModal, setShowJoinModal] = useState(false);
-  const [selectedGroup, setSelectedGroup] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [myGroups, setMyGroups] = useState([]);
+  const [publicGroups, setPublicGroups] = useState([]);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Mock data - replace with Firebase queries
-  const myGroups = [
-    {
-      id: 1,
-      name: 'Tech Team',
-      description: 'Daily discussions about development and technology',
-      memberCount: 12,
-      isPrivate: false,
-      role: 'admin',
-      lastActivity: '2 hours ago',
-      avatar: null,
-      recentMessages: 23
-    },
-    {
-      id: 2,
-      name: 'Project Alpha',
-      description: 'Secret project collaboration space',
-      memberCount: 6,
-      isPrivate: true,
-      role: 'owner',
-      lastActivity: '5 minutes ago',
-      avatar: null,
-      recentMessages: 45
-    },
-    {
-      id: 3,
-      name: 'Coffee Chat',
-      description: 'Casual conversations and coffee recommendations',
-      memberCount: 28,
-      isPrivate: false,
-      role: 'member',
-      lastActivity: '1 day ago',
-      avatar: null,
-      recentMessages: 12
-    }
-  ];
-
-  const publicGroups = [
-    {
-      id: 4,
-      name: 'Web Developers',
-      description: 'Community for web developers to share knowledge',
-      memberCount: 156,
-      isPrivate: false,
-      category: 'Technology',
-      createdAt: new Date('2024-01-15'),
-      avatar: null
-    },
-    {
-      id: 5,
-      name: 'Book Club',
-      description: 'Monthly book discussions and recommendations',
-      memberCount: 42,
-      isPrivate: false,
-      category: 'Literature',
-      createdAt: new Date('2024-02-01'),
-      avatar: null
-    },
-    {
-      id: 6,
-      name: 'Fitness Enthusiasts',
-      description: 'Share workout routines and fitness tips',
-      memberCount: 89,
-      isPrivate: false,
-      category: 'Health',
-      createdAt: new Date('2024-01-20'),
-      avatar: null
-    }
-  ];
-
+  // Form states
   const [createForm, setCreateForm] = useState({
     name: '',
     description: '',
@@ -104,298 +42,402 @@ const Groups = () => {
     category: 'General'
   });
 
+  useEffect(() => {
+    fetchData();
+  }, [activeTab]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      if (activeTab === 'my-groups') {
+        const groups = await crewConnectService.getUserCrews();
+        setMyGroups(groups);
+      } else {
+        const groups = await crewConnectService.getPublicCrews();
+        setPublicGroups(groups);
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+      setError('Failed to load groups. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateGroup = async (e) => {
     e.preventDefault();
-    // TODO: Implement Firebase group creation
-    console.log('Creating group:', createForm);
-    setShowCreateModal(false);
-    setCreateForm({
-      name: '',
-      description: '',
-      isPrivate: false,
-      category: 'General'
-    });
+    try {
+      setError('');
+      setLoading(true);
+      
+      if (!createForm.name.trim() || !createForm.description.trim()) {
+        setError('Name and description are required');
+        return;
+      }
+
+      await crewConnectService.createCrew(
+        createForm.name.trim(),
+        createForm.description.trim(),
+        !createForm.isPrivate // isPublic is opposite of isPrivate
+      );
+      
+      setSuccess('Group created successfully!');
+      setShowCreateModal(false);
+      setCreateForm({
+        name: '',
+        description: '',
+        isPrivate: false,
+        category: 'General'
+      });
+      
+      // Refresh my groups
+      if (activeTab === 'my-groups') {
+        await fetchData();
+      }
+      
+    } catch (error) {
+      console.error('Error creating group:', error);
+      setError(error.message || 'Failed to create group');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleJoinGroup = async (groupId) => {
-    // TODO: Implement Firebase group joining
-    console.log('Joining group:', groupId);
-    setShowJoinModal(false);
+    try {
+      setError('');
+      setLoading(true);
+      
+      await crewConnectService.joinCrew(groupId);
+      setSuccess('Successfully joined the group!');
+      
+      // Refresh data
+      await fetchData();
+      
+    } catch (error) {
+      console.error('Error joining group:', error);
+      setError(error.message || 'Failed to join group');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const GroupCard = ({ group, showJoinButton = false }) => (
-    <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6 hover:bg-white/10 transition-all duration-200">
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-            {group.avatar ? (
-              <img
-                src={group.avatar}
-                alt={group.name}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
-            ) : (
-              <Users className="w-6 h-6 text-white" />
+  const filteredGroups = (activeTab === 'my-groups' ? myGroups : publicGroups).filter(group =>
+    group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    group.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const GroupCard = ({ group, showJoinButton = false }) => {
+    const isUserMember = activeTab === 'my-groups';
+    const memberCount = group.memberCount || 0;
+    
+    return (
+      <div className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6 hover:bg-white/10 transition-all duration-200">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+              {group.avatarUrl ? (
+                <img
+                  src={group.avatarUrl}
+                  alt={group.name}
+                  className="w-12 h-12 rounded-lg object-cover"
+                />
+              ) : (
+                <Users className="w-6 h-6 text-white" />
+              )}
+            </div>
+            
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-1">
+                <h3 className="font-semibold text-white">{group.name}</h3>
+                {group.isPublic === false ? (
+                  <Lock className="w-4 h-4 text-yellow-400" />
+                ) : (
+                  <Globe className="w-4 h-4 text-green-400" />
+                )}
+                {group.membership?.role === 'admin' && <Crown className="w-4 h-4 text-yellow-400" />}
+                {group.membership?.role === 'moderator' && <Shield className="w-4 h-4 text-blue-400" />}
+              </div>
+              <p className="text-gray-400 text-sm mb-2">{group.description}</p>
+              <div className="flex items-center space-x-4 text-xs text-gray-500">
+                <span className="flex items-center space-x-1">
+                  <Users className="w-3 h-3" />
+                  <span>{memberCount} members</span>
+                </span>
+                {isUserMember && group.recentMessages && (
+                  <span className="flex items-center space-x-1">
+                    <MessageCircle className="w-3 h-3" />
+                    <span>{group.recentMessages} messages</span>
+                  </span>
+                )}
+                {group.createdAt && (
+                  <span className="flex items-center space-x-1">
+                    <Calendar className="w-3 h-3" />
+                    <span>{new Date(group.createdAt?.toDate ? group.createdAt.toDate() : group.createdAt).toLocaleDateString()}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {showJoinButton && (
+              <button
+                onClick={() => handleJoinGroup(group.id)}
+                disabled={loading}
+                className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50"
+              >
+                {loading ? 'Joining...' : 'Join'}
+              </button>
+            )}
+            
+            {isUserMember && (
+              <Link
+                to={`/chat/${group.id}`}
+                className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg font-medium hover:from-green-600 hover:to-teal-600 transition-colors flex items-center space-x-2"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>Chat</span>
+              </Link>
             )}
           </div>
-          
-          <div className="flex-1">
-            <div className="flex items-center space-x-2 mb-1">
-              <h3 className="font-semibold text-white">{group.name}</h3>
-              {group.isPrivate ? (
-                <Lock className="w-4 h-4 text-yellow-400" />
-              ) : (
-                <Globe className="w-4 h-4 text-green-400" />
-              )}
-              {group.role === 'owner' && <Crown className="w-4 h-4 text-yellow-400" />}
-              {group.role === 'admin' && <Shield className="w-4 h-4 text-blue-400" />}
-            </div>
-            <p className="text-gray-400 text-sm line-clamp-2">{group.description}</p>
+        </div>
+        
+        {isUserMember && group.lastActivity && (
+          <div className="border-t border-white/10 pt-3">
+            <p className="text-xs text-gray-500">
+              Last activity: {group.lastActivity}
+            </p>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          {showJoinButton ? (
-            <button
-              onClick={() => handleJoinGroup(group.id)}
-              className="flex items-center space-x-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Join</span>
-            </button>
-          ) : (
-            <Link
-              to={`/chat/${group.id}`}
-              className="flex items-center space-x-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Chat</span>
-            </Link>
-          )}
-          
-          <button className="p-1 text-gray-400 hover:text-white transition-colors">
-            <Eye className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between text-sm text-gray-400">
-        <div className="flex items-center space-x-4">
-          <span className="flex items-center">
-            <User className="w-4 h-4 mr-1" />
-            {group.memberCount} members
-          </span>
-          
-          {group.lastActivity && (
-            <span className="flex items-center">
-              <MessageCircle className="w-4 h-4 mr-1" />
-              {group.lastActivity}
-            </span>
-          )}
-          
-          {group.category && (
-            <span className="bg-white/10 px-2 py-1 rounded-full text-xs">
-              {group.category}
-            </span>
-          )}
-        </div>
-        
-        {group.recentMessages && (
-          <span className="text-blue-400">{group.recentMessages} new</span>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
       <div className="bg-white/5 backdrop-blur-xl border-b border-white/10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-4">
-              <Link
-                to="/dashboard"
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
+              <Link to="/dashboard" className="text-gray-400 hover:text-white transition-colors">
+                <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-2xl font-bold text-white">Groups</h1>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 bg-clip-text text-transparent">
+                Groups
+              </h1>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search groups..."
-                  className="bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-64"
-                />
-              </div>
-              
-              <button className="p-2 text-gray-400 hover:text-white transition-colors">
-                <Filter className="w-5 h-5" />
-              </button>
-              
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Create Group</span>
-              </button>
-            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors flex items-center space-x-2"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create Group</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Tabs */}
-        <div className="flex space-x-1 bg-white/5 backdrop-blur-xl rounded-lg p-1 mb-8 w-fit">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Error/Success Messages */}
+        {error && (
+          <div className="mb-6 bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-center space-x-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <span className="text-red-300">{error}</span>
+            <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-300">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-6 bg-green-500/10 border border-green-500/20 rounded-lg p-4 flex items-center space-x-3">
+            <Check className="w-5 h-5 text-green-400" />
+            <span className="text-green-300">{success}</span>
+            <button onClick={() => setSuccess('')} className="ml-auto text-green-400 hover:text-green-300">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 p-1 bg-white/5 backdrop-blur-xl rounded-lg border border-white/10 mb-6 w-fit">
           <button
             onClick={() => setActiveTab('my-groups')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === 'my-groups'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             My Groups
           </button>
           <button
             onClick={() => setActiveTab('discover')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
               activeTab === 'discover'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-white'
+                ? 'bg-blue-500 text-white'
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             Discover
           </button>
         </div>
 
-        {/* Content */}
-        <div className="space-y-6">
-          {activeTab === 'my-groups' && (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Your Groups</h2>
-                <span className="text-gray-400 text-sm">{myGroups.length} groups</span>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {myGroups.map((group) => (
-                  <GroupCard key={group.id} group={group} />
-                ))}
-              </div>
-            </>
-          )}
-
-          {activeTab === 'discover' && (
-            <>
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-white">Public Groups</h2>
-                <span className="text-gray-400 text-sm">{publicGroups.length} groups available</span>
-              </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {publicGroups.map((group) => (
-                  <GroupCard key={group.id} group={group} showJoinButton />
-                ))}
-              </div>
-            </>
-          )}
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search groups..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="bg-white/5 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 w-full"
+            />
+          </div>
         </div>
+
+        {/* Content */}
+        {loading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-4 border-white/20 border-t-purple-500 rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredGroups.length > 0 ? (
+              filteredGroups.map((group) => (
+                <GroupCard
+                  key={group.id}
+                  group={group}
+                  showJoinButton={activeTab === 'discover'}
+                />
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <Users className="w-16 h-16 text-gray-500 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  {activeTab === 'my-groups' ? 'No groups joined yet' : 'No groups found'}
+                </h3>
+                <p className="text-gray-400 mb-4">
+                  {activeTab === 'my-groups' 
+                    ? 'Join some groups to get started with conversations' 
+                    : 'Try adjusting your search or check back later'
+                  }
+                </p>
+                {activeTab === 'my-groups' && (
+                  <button
+                    onClick={() => setActiveTab('discover')}
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors"
+                  >
+                    Discover Groups
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-2xl border border-white/10 p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-semibold text-white">Create New Group</h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="p-1 text-gray-400 hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleCreateGroup} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Group Name</label>
-                <input
-                  type="text"
-                  value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                  className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  placeholder="Enter group name"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
-                <textarea
-                  value={createForm.description}
-                  onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
-                  rows={3}
-                  className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
-                  placeholder="Describe your group"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
-                <select
-                  value={createForm.category}
-                  onChange={(e) => setCreateForm({ ...createForm, category: e.target.value })}
-                  className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                >
-                  <option value="General">General</option>
-                  <option value="Technology">Technology</option>
-                  <option value="Business">Business</option>
-                  <option value="Education">Education</option>
-                  <option value="Entertainment">Entertainment</option>
-                  <option value="Health">Health</option>
-                  <option value="Sports">Sports</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <label className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={createForm.isPrivate}
-                    onChange={(e) => setCreateForm({ ...createForm, isPrivate: e.target.checked })}
-                    className="rounded border-white/20 bg-white/5 text-blue-600 focus:ring-blue-500/50"
-                  />
-                  <span className="text-sm text-gray-300">Private Group</span>
-                </label>
-                <Lock className="w-4 h-4 text-yellow-400" />
-              </div>
-              
-              <div className="flex space-x-3 pt-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/10 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Create New Group</h2>
                 <button
-                  type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 px-4 rounded-lg transition-colors"
+                  className="text-gray-400 hover:text-white transition-colors"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors"
-                >
-                  Create Group
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleCreateGroup} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Group Name
+                  </label>
+                  <input
+                    type="text"
+                    value={createForm.name}
+                    onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    placeholder="Enter group name..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={createForm.description}
+                    onChange={(e) => setCreateForm({...createForm, description: e.target.value})}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 h-24 resize-none"
+                    placeholder="Describe your group..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Privacy
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="privacy"
+                        checked={!createForm.isPrivate}
+                        onChange={() => setCreateForm({...createForm, isPrivate: false})}
+                        className="text-blue-500 focus:ring-blue-500/50"
+                      />
+                      <div className="flex items-center space-x-2">
+                        <Globe className="w-4 h-4 text-green-400" />
+                        <span className="text-gray-300">Public - Anyone can join</span>
+                      </div>
+                    </label>
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="privacy"
+                        checked={createForm.isPrivate}
+                        onChange={() => setCreateForm({...createForm, isPrivate: true})}
+                        className="text-blue-500 focus:ring-blue-500/50"
+                      />
+                      <div className="flex items-center space-x-2">
+                        <Lock className="w-4 h-4 text-yellow-400" />
+                        <span className="text-gray-300">Private - Invite only</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 bg-white/5 border border-white/10 text-white px-4 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Creating...' : 'Create Group'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

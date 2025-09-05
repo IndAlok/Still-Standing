@@ -1,0 +1,1748 @@
+"""
+✨ `Crew_KeyOutput` returns the primary key fields of table type `Crew`.
+
+It has the same format as `Crew_Key`, but is only used as mutation return value.
+"""
+scalar Crew_KeyOutput
+"""
+✨ `Membership_KeyOutput` returns the primary key fields of table type `Membership`.
+
+It has the same format as `Membership_Key`, but is only used as mutation return value.
+"""
+scalar Membership_KeyOutput
+"""
+✨ `Message_KeyOutput` returns the primary key fields of table type `Message`.
+
+It has the same format as `Message_Key`, but is only used as mutation return value.
+"""
+scalar Message_KeyOutput
+"""
+✨ `User_KeyOutput` returns the primary key fields of table type `User`.
+
+It has the same format as `User_Key`, but is only used as mutation return value.
+"""
+scalar User_KeyOutput
+"""
+✨ Generated data input type for table 'Crew'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Crew_Data {
+  """
+  ✨ Generated from Field `Crew`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Crew`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Crew`.`createdById` of type `UUID!`
+  """
+  createdById: UUID
+  """
+  ✨ `_expr` server value variant of `createdById` (✨ Generated from Field `Crew`.`createdById` of type `UUID!`)
+  """
+  createdById_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Crew`.`createdBy` of type `User!`
+  """
+  createdBy: User_Key
+  """
+  ✨ Generated from Field `Crew`.`avatarUrl` of type `String`
+  """
+  avatarUrl: String
+  """
+  ✨ `_expr` server value variant of `avatarUrl` (✨ Generated from Field `Crew`.`avatarUrl` of type `String`)
+  """
+  avatarUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Crew`.`description` of type `String`
+  """
+  description: String
+  """
+  ✨ `_expr` server value variant of `description` (✨ Generated from Field `Crew`.`description` of type `String`)
+  """
+  description_expr: String_Expr
+  """
+  ✨ Generated from Field `Crew`.`isPublic` of type `Boolean!`
+  """
+  isPublic: Boolean
+  """
+  ✨ `_expr` server value variant of `isPublic` (✨ Generated from Field `Crew`.`isPublic` of type `Boolean!`)
+  """
+  isPublic_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `Crew`.`maxMembers` of type `Int`
+  """
+  maxMembers: Int
+  """
+  ✨ `_expr` server value variant of `maxMembers` (✨ Generated from Field `Crew`.`maxMembers` of type `Int`)
+  """
+  maxMembers_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `maxMembers` (✨ Generated from Field `Crew`.`maxMembers` of type `Int`)
+  """
+  maxMembers_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Crew`.`name` of type `String!`
+  """
+  name: String
+  """
+  ✨ `_expr` server value variant of `name` (✨ Generated from Field `Crew`.`name` of type `String!`)
+  """
+  name_expr: String_Expr
+  """
+  ✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`
+  """
+  updatedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `updatedAt` (✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`)
+  """
+  updatedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `updatedAt` (✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`)
+  """
+  updatedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `updatedAt` (✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`)
+  """
+  updatedAt_update: [Timestamp_Update!]
+}
+"""
+✨ Generated filter input type for table 'Crew'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Crew_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Crew_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Crew_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Crew_Filter!]
+  """
+  ✨ Generated from Field `Crew`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdById` of type `UUID!`
+  """
+  createdById: UUID_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdBy` of type `User!`
+  """
+  createdBy: User_Filter
+  """
+  ✨ Generated from Field `Crew`.`avatarUrl` of type `String`
+  """
+  avatarUrl: String_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Crew`.`description` of type `String`
+  """
+  description: String_Filter
+  """
+  ✨ Generated from Field `Crew`.`isPublic` of type `Boolean!`
+  """
+  isPublic: Boolean_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers` of type `Int`
+  """
+  maxMembers: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`name` of type `String!`
+  """
+  name: String_Filter
+  """
+  ✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`
+  """
+  updatedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Crew`.`memberships_on_crew` of type `[Membership!]!`
+  """
+  memberships_on_crew: Membership_ListFilter
+  """
+  ✨ Generated from Field `Crew`.`messages_on_crew` of type `[Message!]!`
+  """
+  messages_on_crew: Message_ListFilter
+  """
+  ✨ Generated from Field `Crew`.`users_via_Membership` of type `[User!]!`
+  """
+  users_via_Membership: User_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'Crew'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Crew_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Crew_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Crew_Filter
+}
+"""
+✨ Generated having input type for table 'Crew'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Crew_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Crew_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Crew_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Crew_Having!]
+  """
+  ✨ Generated from Field `Crew`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`avatarUrl_count` of type `Int!`
+  """
+  avatarUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdById_count` of type `Int!`
+  """
+  createdById_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`description_count` of type `Int!`
+  """
+  description_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`isPublic_count` of type `Int!`
+  """
+  isPublic_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_count` of type `Int!`
+  """
+  maxMembers_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`name_count` of type `Int!`
+  """
+  name_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_count` of type `Int!`
+  """
+  updatedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_sum` of type `Int`
+  """
+  maxMembers_sum: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_avg` of type `Float`
+  """
+  maxMembers_avg: Float_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_min` of type `Int`
+  """
+  maxMembers_min: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_min` of type `Timestamp`
+  """
+  updatedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Crew`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_max` of type `Int`
+  """
+  maxMembers_max: Int_Filter
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_max` of type `Timestamp`
+  """
+  updatedAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'Crew'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Crew_Key {
+  """
+  ✨ Generated from Field `Crew`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Crew`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Crew'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Crew_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Crew_Filter
+}
+"""
+✨ Generated order input type for table 'Crew'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Crew_Order {
+  """
+  ✨ Generated from Field `Crew`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdById` of type `UUID!`
+  """
+  createdById: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdBy` of type `User!`
+  """
+  createdBy: User_Order
+  """
+  ✨ Generated from Field `Crew`.`avatarUrl` of type `String`
+  """
+  avatarUrl: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`description` of type `String`
+  """
+  description: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`isPublic` of type `Boolean!`
+  """
+  isPublic: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers` of type `Int`
+  """
+  maxMembers: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`name` of type `String!`
+  """
+  name: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`updatedAt` of type `Timestamp`
+  """
+  updatedAt: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`avatarUrl_count` of type `Int!`
+  """
+  avatarUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdById_count` of type `Int!`
+  """
+  createdById_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`description_count` of type `Int!`
+  """
+  description_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`isPublic_count` of type `Int!`
+  """
+  isPublic_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_count` of type `Int!`
+  """
+  maxMembers_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`name_count` of type `Int!`
+  """
+  name_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_count` of type `Int!`
+  """
+  updatedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_sum` of type `Int`
+  """
+  maxMembers_sum: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_avg` of type `Float`
+  """
+  maxMembers_avg: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_min` of type `Int`
+  """
+  maxMembers_min: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_min` of type `Timestamp`
+  """
+  updatedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`maxMembers_max` of type `Int`
+  """
+  maxMembers_max: OrderDirection
+  """
+  ✨ Generated from Field `Crew`.`updatedAt_max` of type `Timestamp`
+  """
+  updatedAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Membership'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Membership_Data {
+  """
+  ✨ Generated from Field `Membership`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `Membership`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Membership`.`crewId` of type `UUID!`
+  """
+  crewId: UUID
+  """
+  ✨ `_expr` server value variant of `crewId` (✨ Generated from Field `Membership`.`crewId` of type `UUID!`)
+  """
+  crewId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Membership`.`crew` of type `Crew!`
+  """
+  crew: Crew_Key
+  """
+  ✨ Generated from Field `Membership`.`user` of type `User!`
+  """
+  user: User_Key
+  """
+  ✨ Generated from Field `Membership`.`canInvite` of type `Boolean`
+  """
+  canInvite: Boolean
+  """
+  ✨ `_expr` server value variant of `canInvite` (✨ Generated from Field `Membership`.`canInvite` of type `Boolean`)
+  """
+  canInvite_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `Membership`.`canModerate` of type `Boolean`
+  """
+  canModerate: Boolean
+  """
+  ✨ `_expr` server value variant of `canModerate` (✨ Generated from Field `Membership`.`canModerate` of type `Boolean`)
+  """
+  canModerate_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `Membership`.`isActive` of type `Boolean!`
+  """
+  isActive: Boolean
+  """
+  ✨ `_expr` server value variant of `isActive` (✨ Generated from Field `Membership`.`isActive` of type `Boolean!`)
+  """
+  isActive_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `joinedAt` (✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `joinedAt` (✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `joinedAt` (✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`)
+  """
+  joinedAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Membership`.`role` of type `String!`
+  """
+  role: String
+  """
+  ✨ `_expr` server value variant of `role` (✨ Generated from Field `Membership`.`role` of type `String!`)
+  """
+  role_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Membership'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Membership_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Membership_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Membership_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Membership_Filter!]
+  """
+  ✨ Generated from Field `Membership`.`userId` of type `UUID!`
+  """
+  userId: UUID_Filter
+  """
+  ✨ Generated from Field `Membership`.`crewId` of type `UUID!`
+  """
+  crewId: UUID_Filter
+  """
+  ✨ Generated from Field `Membership`.`crew` of type `Crew!`
+  """
+  crew: Crew_Filter
+  """
+  ✨ Generated from Field `Membership`.`user` of type `User!`
+  """
+  user: User_Filter
+  """
+  ✨ Generated from Field `Membership`.`canInvite` of type `Boolean`
+  """
+  canInvite: Boolean_Filter
+  """
+  ✨ Generated from Field `Membership`.`canModerate` of type `Boolean`
+  """
+  canModerate: Boolean_Filter
+  """
+  ✨ Generated from Field `Membership`.`isActive` of type `Boolean!`
+  """
+  isActive: Boolean_Filter
+  """
+  ✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Membership`.`role` of type `String!`
+  """
+  role: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'Membership'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Membership_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Membership_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Membership_Filter
+}
+"""
+✨ Generated having input type for table 'Membership'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Membership_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Membership_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Membership_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Membership_Having!]
+  """
+  ✨ Generated from Field `Membership`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`canInvite_count` of type `Int!`
+  """
+  canInvite_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`canModerate_count` of type `Int!`
+  """
+  canModerate_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`crewId_count` of type `Int!`
+  """
+  crewId_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`isActive_count` of type `Int!`
+  """
+  isActive_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_count` of type `Int!`
+  """
+  joinedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`role_count` of type `Int!`
+  """
+  role_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`userId_count` of type `Int!`
+  """
+  userId_count: Int_Filter
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_min` of type `Timestamp`
+  """
+  joinedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_max` of type `Timestamp`
+  """
+  joinedAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'Membership'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Membership_Key {
+  """
+  ✨ Generated from Field `Membership`.`userId` of type `UUID!`
+  """
+  userId: UUID
+  """
+  ✨ `_expr` server value variant of `userId` (✨ Generated from Field `Membership`.`userId` of type `UUID!`)
+  """
+  userId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Membership`.`crewId` of type `UUID!`
+  """
+  crewId: UUID
+  """
+  ✨ `_expr` server value variant of `crewId` (✨ Generated from Field `Membership`.`crewId` of type `UUID!`)
+  """
+  crewId_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Membership'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Membership_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Membership_Filter
+}
+"""
+✨ Generated order input type for table 'Membership'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Membership_Order {
+  """
+  ✨ Generated from Field `Membership`.`userId` of type `UUID!`
+  """
+  userId: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`crewId` of type `UUID!`
+  """
+  crewId: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`crew` of type `Crew!`
+  """
+  crew: Crew_Order
+  """
+  ✨ Generated from Field `Membership`.`user` of type `User!`
+  """
+  user: User_Order
+  """
+  ✨ Generated from Field `Membership`.`canInvite` of type `Boolean`
+  """
+  canInvite: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`canModerate` of type `Boolean`
+  """
+  canModerate: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`isActive` of type `Boolean!`
+  """
+  isActive: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`joinedAt` of type `Timestamp!`
+  """
+  joinedAt: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`role` of type `String!`
+  """
+  role: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`canInvite_count` of type `Int!`
+  """
+  canInvite_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`canModerate_count` of type `Int!`
+  """
+  canModerate_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`crewId_count` of type `Int!`
+  """
+  crewId_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`isActive_count` of type `Int!`
+  """
+  isActive_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_count` of type `Int!`
+  """
+  joinedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`role_count` of type `Int!`
+  """
+  role_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`userId_count` of type `Int!`
+  """
+  userId_count: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_min` of type `Timestamp`
+  """
+  joinedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Membership`.`joinedAt_max` of type `Timestamp`
+  """
+  joinedAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'Message'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input Message_Data {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Message`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Message`.`crewId` of type `UUID!`
+  """
+  crewId: UUID
+  """
+  ✨ `_expr` server value variant of `crewId` (✨ Generated from Field `Message`.`crewId` of type `UUID!`)
+  """
+  crewId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: UUID
+  """
+  ✨ `_expr` server value variant of `senderId` (✨ Generated from Field `Message`.`senderId` of type `UUID!`)
+  """
+  senderId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Message`.`crew` of type `Crew!`
+  """
+  crew: Crew_Key
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Key
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: String
+  """
+  ✨ `_expr` server value variant of `content` (✨ Generated from Field `Message`.`content` of type `String!`)
+  """
+  content_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`editedAt` of type `Timestamp`
+  """
+  editedAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `editedAt` (✨ Generated from Field `Message`.`editedAt` of type `Timestamp`)
+  """
+  editedAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `editedAt` (✨ Generated from Field `Message`.`editedAt` of type `Timestamp`)
+  """
+  editedAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `editedAt` (✨ Generated from Field `Message`.`editedAt` of type `Timestamp`)
+  """
+  editedAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Message`.`fileName` of type `String`
+  """
+  fileName: String
+  """
+  ✨ `_expr` server value variant of `fileName` (✨ Generated from Field `Message`.`fileName` of type `String`)
+  """
+  fileName_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`fileSize` of type `Int`
+  """
+  fileSize: Int
+  """
+  ✨ `_expr` server value variant of `fileSize` (✨ Generated from Field `Message`.`fileSize` of type `Int`)
+  """
+  fileSize_expr: Int_Expr
+  """
+  ✨ `_update` server value variant of `fileSize` (✨ Generated from Field `Message`.`fileSize` of type `Int`)
+  """
+  fileSize_update: [Int_Update!]
+  """
+  ✨ Generated from Field `Message`.`fileUrl` of type `String`
+  """
+  fileUrl: String
+  """
+  ✨ `_expr` server value variant of `fileUrl` (✨ Generated from Field `Message`.`fileUrl` of type `String`)
+  """
+  fileUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`imageUrl` of type `String`
+  """
+  imageUrl: String
+  """
+  ✨ `_expr` server value variant of `imageUrl` (✨ Generated from Field `Message`.`imageUrl` of type `String`)
+  """
+  imageUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`isDeleted` of type `Boolean`
+  """
+  isDeleted: Boolean
+  """
+  ✨ `_expr` server value variant of `isDeleted` (✨ Generated from Field `Message`.`isDeleted` of type `Boolean`)
+  """
+  isDeleted_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `Message`.`mentions` of type `[String]`
+  """
+  mentions: [String!]
+  """
+  ✨ `_update` server value variant of `mentions` (✨ Generated from Field `Message`.`mentions` of type `[String]`)
+  """
+  mentions_update: [String_ListUpdate!]
+  """
+  ✨ Generated from Field `Message`.`messageType` of type `String!`
+  """
+  messageType: String
+  """
+  ✨ `_expr` server value variant of `messageType` (✨ Generated from Field `Message`.`messageType` of type `String!`)
+  """
+  messageType_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`reactions` of type `[String]`
+  """
+  reactions: [String!]
+  """
+  ✨ `_update` server value variant of `reactions` (✨ Generated from Field `Message`.`reactions` of type `[String]`)
+  """
+  reactions_update: [String_ListUpdate!]
+  """
+  ✨ Generated from Field `Message`.`replyToMessageId` of type `UUID`
+  """
+  replyToMessageId: UUID
+  """
+  ✨ `_expr` server value variant of `replyToMessageId` (✨ Generated from Field `Message`.`replyToMessageId` of type `UUID`)
+  """
+  replyToMessageId_expr: UUID_Expr
+  """
+  ✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`
+  """
+  sentAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `sentAt` (✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`)
+  """
+  sentAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `sentAt` (✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`)
+  """
+  sentAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `sentAt` (✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`)
+  """
+  sentAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `Message`.`thumbnailUrl` of type `String`
+  """
+  thumbnailUrl: String
+  """
+  ✨ `_expr` server value variant of `thumbnailUrl` (✨ Generated from Field `Message`.`thumbnailUrl` of type `String`)
+  """
+  thumbnailUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `Message`.`videoUrl` of type `String`
+  """
+  videoUrl: String
+  """
+  ✨ `_expr` server value variant of `videoUrl` (✨ Generated from Field `Message`.`videoUrl` of type `String`)
+  """
+  videoUrl_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'Message'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Message_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [Message_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: Message_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [Message_Filter!]
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`crewId` of type `UUID!`
+  """
+  crewId: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`crew` of type `Crew!`
+  """
+  crew: Crew_Filter
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Filter
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: String_Filter
+  """
+  ✨ Generated from Field `Message`.`editedAt` of type `Timestamp`
+  """
+  editedAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`fileName` of type `String`
+  """
+  fileName: String_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize` of type `Int`
+  """
+  fileSize: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileUrl` of type `String`
+  """
+  fileUrl: String_Filter
+  """
+  ✨ Generated from Field `Message`.`imageUrl` of type `String`
+  """
+  imageUrl: String_Filter
+  """
+  ✨ Generated from Field `Message`.`isDeleted` of type `Boolean`
+  """
+  isDeleted: Boolean_Filter
+  """
+  ✨ Generated from Field `Message`.`mentions` of type `[String]`
+  """
+  mentions: String_ListFilter
+  """
+  ✨ Generated from Field `Message`.`messageType` of type `String!`
+  """
+  messageType: String_Filter
+  """
+  ✨ Generated from Field `Message`.`reactions` of type `[String]`
+  """
+  reactions: String_ListFilter
+  """
+  ✨ Generated from Field `Message`.`replyToMessageId` of type `UUID`
+  """
+  replyToMessageId: UUID_Filter
+  """
+  ✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`
+  """
+  sentAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`thumbnailUrl` of type `String`
+  """
+  thumbnailUrl: String_Filter
+  """
+  ✨ Generated from Field `Message`.`videoUrl` of type `String`
+  """
+  videoUrl: String_Filter
+}
+"""
+✨ Generated first-row input type for table 'Message'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input Message_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [Message_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: Message_Filter
+}
+"""
+✨ Generated having input type for table 'Message'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input Message_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [Message_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: Message_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [Message_Having!]
+  """
+  ✨ Generated from Field `Message`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`content_count` of type `Int!`
+  """
+  content_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`crewId_count` of type `Int!`
+  """
+  crewId_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`editedAt_count` of type `Int!`
+  """
+  editedAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileName_count` of type `Int!`
+  """
+  fileName_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize_count` of type `Int!`
+  """
+  fileSize_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileUrl_count` of type `Int!`
+  """
+  fileUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`imageUrl_count` of type `Int!`
+  """
+  imageUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`isDeleted_count` of type `Int!`
+  """
+  isDeleted_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`messageType_count` of type `Int!`
+  """
+  messageType_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`replyToMessageId_count` of type `Int!`
+  """
+  replyToMessageId_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`senderId_count` of type `Int!`
+  """
+  senderId_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`sentAt_count` of type `Int!`
+  """
+  sentAt_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`thumbnailUrl_count` of type `Int!`
+  """
+  thumbnailUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`videoUrl_count` of type `Int!`
+  """
+  videoUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize_sum` of type `Int`
+  """
+  fileSize_sum: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize_avg` of type `Float`
+  """
+  fileSize_avg: Float_Filter
+  """
+  ✨ Generated from Field `Message`.`editedAt_min` of type `Timestamp`
+  """
+  editedAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize_min` of type `Int`
+  """
+  fileSize_min: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`sentAt_min` of type `Timestamp`
+  """
+  sentAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`editedAt_max` of type `Timestamp`
+  """
+  editedAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `Message`.`fileSize_max` of type `Int`
+  """
+  fileSize_max: Int_Filter
+  """
+  ✨ Generated from Field `Message`.`sentAt_max` of type `Timestamp`
+  """
+  sentAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'Message'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input Message_Key {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `Message`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'Message'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input Message_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: Message_Filter
+}
+"""
+✨ Generated order input type for table 'Message'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input Message_Order {
+  """
+  ✨ Generated from Field `Message`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`crewId` of type `UUID!`
+  """
+  crewId: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`senderId` of type `UUID!`
+  """
+  senderId: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`crew` of type `Crew!`
+  """
+  crew: Crew_Order
+  """
+  ✨ Generated from Field `Message`.`sender` of type `User!`
+  """
+  sender: User_Order
+  """
+  ✨ Generated from Field `Message`.`content` of type `String!`
+  """
+  content: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`editedAt` of type `Timestamp`
+  """
+  editedAt: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileName` of type `String`
+  """
+  fileName: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize` of type `Int`
+  """
+  fileSize: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileUrl` of type `String`
+  """
+  fileUrl: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`imageUrl` of type `String`
+  """
+  imageUrl: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`isDeleted` of type `Boolean`
+  """
+  isDeleted: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`messageType` of type `String!`
+  """
+  messageType: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`replyToMessageId` of type `UUID`
+  """
+  replyToMessageId: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`sentAt` of type `Timestamp!`
+  """
+  sentAt: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`thumbnailUrl` of type `String`
+  """
+  thumbnailUrl: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`videoUrl` of type `String`
+  """
+  videoUrl: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`content_count` of type `Int!`
+  """
+  content_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`crewId_count` of type `Int!`
+  """
+  crewId_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`editedAt_count` of type `Int!`
+  """
+  editedAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileName_count` of type `Int!`
+  """
+  fileName_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize_count` of type `Int!`
+  """
+  fileSize_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileUrl_count` of type `Int!`
+  """
+  fileUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`imageUrl_count` of type `Int!`
+  """
+  imageUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`isDeleted_count` of type `Int!`
+  """
+  isDeleted_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`messageType_count` of type `Int!`
+  """
+  messageType_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`replyToMessageId_count` of type `Int!`
+  """
+  replyToMessageId_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`senderId_count` of type `Int!`
+  """
+  senderId_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`sentAt_count` of type `Int!`
+  """
+  sentAt_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`thumbnailUrl_count` of type `Int!`
+  """
+  thumbnailUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`videoUrl_count` of type `Int!`
+  """
+  videoUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize_sum` of type `Int`
+  """
+  fileSize_sum: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize_avg` of type `Float`
+  """
+  fileSize_avg: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`editedAt_min` of type `Timestamp`
+  """
+  editedAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize_min` of type `Int`
+  """
+  fileSize_min: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`sentAt_min` of type `Timestamp`
+  """
+  sentAt_min: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`editedAt_max` of type `Timestamp`
+  """
+  editedAt_max: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`fileSize_max` of type `Int`
+  """
+  fileSize_max: OrderDirection
+  """
+  ✨ Generated from Field `Message`.`sentAt_max` of type `Timestamp`
+  """
+  sentAt_max: OrderDirection
+}
+"""
+✨ Generated data input type for table 'User'. It includes all necessary fields for creating or upserting rows into table.
+"""
+input User_Data {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+  """
+  ✨ Generated from Field `User`.`bio` of type `String`
+  """
+  bio: String
+  """
+  ✨ `_expr` server value variant of `bio` (✨ Generated from Field `User`.`bio` of type `String`)
+  """
+  bio_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `createdAt` (✨ Generated from Field `User`.`createdAt` of type `Timestamp!`)
+  """
+  createdAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String
+  """
+  ✨ `_expr` server value variant of `displayName` (✨ Generated from Field `User`.`displayName` of type `String`)
+  """
+  displayName_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String
+  """
+  ✨ `_expr` server value variant of `email` (✨ Generated from Field `User`.`email` of type `String!`)
+  """
+  email_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`firebaseUID` of type `String!`
+  """
+  firebaseUID: String
+  """
+  ✨ `_expr` server value variant of `firebaseUID` (✨ Generated from Field `User`.`firebaseUID` of type `String!`)
+  """
+  firebaseUID_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`isOnline` of type `Boolean`
+  """
+  isOnline: Boolean
+  """
+  ✨ `_expr` server value variant of `isOnline` (✨ Generated from Field `User`.`isOnline` of type `Boolean`)
+  """
+  isOnline_expr: Boolean_Expr
+  """
+  ✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`
+  """
+  lastActiveAt: Timestamp
+  """
+  ✨ `_expr` server value variant of `lastActiveAt` (✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`)
+  """
+  lastActiveAt_expr: Timestamp_Expr
+  """
+  ✨ `_time` server value variant of `lastActiveAt` (✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`)
+  """
+  lastActiveAt_time: Timestamp_Relative
+  """
+  ✨ `_update` server value variant of `lastActiveAt` (✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`)
+  """
+  lastActiveAt_update: [Timestamp_Update!]
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: String
+  """
+  ✨ `_expr` server value variant of `profilePictureUrl` (✨ Generated from Field `User`.`profilePictureUrl` of type `String`)
+  """
+  profilePictureUrl_expr: String_Expr
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String
+  """
+  ✨ `_expr` server value variant of `username` (✨ Generated from Field `User`.`username` of type `String!`)
+  """
+  username_expr: String_Expr
+}
+"""
+✨ Generated filter input type for table 'User'. This input allows filtering objects using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Filter {
+  """
+  Apply multiple filter conditions using `AND` logic.
+  """
+  _and: [User_Filter!]
+  """
+  Negate the result of the provided filter condition.
+  """
+  _not: User_Filter
+  """
+  Apply multiple filter conditions using `OR` logic.
+  """
+  _or: [User_Filter!]
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID_Filter
+  """
+  ✨ Generated from Field `User`.`bio` of type `String`
+  """
+  bio: String_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: String_Filter
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: String_Filter
+  """
+  ✨ Generated from Field `User`.`firebaseUID` of type `String!`
+  """
+  firebaseUID: String_Filter
+  """
+  ✨ Generated from Field `User`.`isOnline` of type `Boolean`
+  """
+  isOnline: Boolean_Filter
+  """
+  ✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`
+  """
+  lastActiveAt: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: String_Filter
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: String_Filter
+  """
+  ✨ Generated from Field `User`.`crews_on_createdBy` of type `[Crew!]!`
+  """
+  crews_on_createdBy: Crew_ListFilter
+  """
+  ✨ Generated from Field `User`.`memberships_on_user` of type `[Membership!]!`
+  """
+  memberships_on_user: Membership_ListFilter
+  """
+  ✨ Generated from Field `User`.`messages_on_sender` of type `[Message!]!`
+  """
+  messages_on_sender: Message_ListFilter
+  """
+  ✨ Generated from Field `User`.`crews_via_Membership` of type `[Crew!]!`
+  """
+  crews_via_Membership: Crew_ListFilter
+}
+"""
+✨ Generated first-row input type for table 'User'. This input selects the first row matching the filter criteria, ordered according to the specified conditions.
+"""
+input User_FirstRow {
+  """
+  Order the result by the specified fields.
+  """
+  orderBy: [User_Order!]
+  """
+  Filters rows based on the specified conditions.
+  """
+  where: User_Filter
+}
+"""
+✨ Generated having input type for table 'User'. This input allows you to filter groups during aggregate queries using various conditions. Use `_or`, `_and`, and `_not` to compose complex filters.
+"""
+input User_Having {
+  """
+  Apply multiple Having conditions using `AND` logic.
+  """
+  _and: [User_Having!]
+  """
+  Whether to apply DISTINCT to the aggregate function.
+  """
+  _distinct: Boolean
+  """
+  Negate the result of the provided Having condition.
+  """
+  _not: User_Having
+  """
+  Apply multiple Having conditions using `OR` logic.
+  """
+  _or: [User_Having!]
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`bio_count` of type `Int!`
+  """
+  bio_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`firebaseUID_count` of type `Int!`
+  """
+  firebaseUID_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`isOnline_count` of type `Int!`
+  """
+  isOnline_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_count` of type `Int!`
+  """
+  lastActiveAt_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl_count` of type `Int!`
+  """
+  profilePictureUrl_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: Int_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_min` of type `Timestamp`
+  """
+  lastActiveAt_min: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: Timestamp_Filter
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_max` of type `Timestamp`
+  """
+  lastActiveAt_max: Timestamp_Filter
+}
+"""
+✨ Generated key input type for table 'User'. It represents the primary key fields used to uniquely identify a row in the table.
+"""
+input User_Key {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: UUID
+  """
+  ✨ `_expr` server value variant of `id` (✨ Generated from Field `User`.`id` of type `UUID!`)
+  """
+  id_expr: UUID_Expr
+}
+"""
+✨ Generated list filter input type for table 'User'. This input applies filtering logic based on the count or existence of related objects that matches certain criteria.
+"""
+input User_ListFilter {
+  """
+  The desired number of objects that match the condition (defaults to at least one).
+  """
+  count: Int_Filter = {gt:0}
+  """
+  Condition of the related objects to filter for.
+  """
+  exist: User_Filter
+}
+"""
+✨ Generated order input type for table 'User'. This input defines the sorting order of rows in query results based on one or more fields.
+"""
+input User_Order {
+  """
+  ✨ Generated from Field `User`.`id` of type `UUID!`
+  """
+  id: OrderDirection
+  """
+  ✨ Generated from Field `User`.`bio` of type `String`
+  """
+  bio: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt` of type `Timestamp!`
+  """
+  createdAt: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName` of type `String`
+  """
+  displayName: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email` of type `String!`
+  """
+  email: OrderDirection
+  """
+  ✨ Generated from Field `User`.`firebaseUID` of type `String!`
+  """
+  firebaseUID: OrderDirection
+  """
+  ✨ Generated from Field `User`.`isOnline` of type `Boolean`
+  """
+  isOnline: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastActiveAt` of type `Timestamp`
+  """
+  lastActiveAt: OrderDirection
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl` of type `String`
+  """
+  profilePictureUrl: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username` of type `String!`
+  """
+  username: OrderDirection
+  """
+  ✨ Generated from Field `User`.`_count` of type `Int!`
+  """
+  _count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`bio_count` of type `Int!`
+  """
+  bio_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_count` of type `Int!`
+  """
+  createdAt_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`displayName_count` of type `Int!`
+  """
+  displayName_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`email_count` of type `Int!`
+  """
+  email_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`firebaseUID_count` of type `Int!`
+  """
+  firebaseUID_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`id_count` of type `Int!`
+  """
+  id_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`isOnline_count` of type `Int!`
+  """
+  isOnline_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_count` of type `Int!`
+  """
+  lastActiveAt_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`profilePictureUrl_count` of type `Int!`
+  """
+  profilePictureUrl_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`username_count` of type `Int!`
+  """
+  username_count: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_min` of type `Timestamp`
+  """
+  createdAt_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_min` of type `Timestamp`
+  """
+  lastActiveAt_min: OrderDirection
+  """
+  ✨ Generated from Field `User`.`createdAt_max` of type `Timestamp`
+  """
+  createdAt_max: OrderDirection
+  """
+  ✨ Generated from Field `User`.`lastActiveAt_max` of type `Timestamp`
+  """
+  lastActiveAt_max: OrderDirection
+}

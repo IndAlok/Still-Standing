@@ -11,8 +11,8 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, googleProvider, db } from '../config/firebase';
+import { auth, googleProvider } from '../config/firebase';
+import { crewConnectService } from '../services/crewConnectService';
 
 const AuthContext = createContext();
 
@@ -26,49 +26,49 @@ export function useAuth() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
+  const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Create user document in Firestore
-  const createUserDocument = async (user, additionalData = {}) => {
-    if (!user) return;
-    
-    const userRef = doc(db, 'users', user.uid);
-    const userSnap = await getDoc(userRef);
-    
-    if (!userSnap.exists()) {
-      const { displayName, email, photoURL } = user;
-      const createdAt = serverTimestamp();
-      
-      try {
-        await setDoc(userRef, {
-          displayName: displayName || additionalData.username,
-          email,
-          photoURL: photoURL || null,
-          createdAt,
-          lastLoginAt: serverTimestamp(),
-          isOnline: true,
-          bio: '',
-          location: '',
-          joinedGroups: [],
-          createdGroups: [],
-          ...additionalData
-        });
-      } catch (error) {
-        console.error('Error creating user document:', error);
-        throw error;
-      }
-    } else {
-      // Update last login time
-      await updateDoc(userRef, {
-        lastLoginAt: serverTimestamp(),
-        isOnline: true
-      });
+  // Create or get user profile using crewConnectService
+  const handleUserProfile = async (user) => {
+    if (!user) {
+      setUserProfile(null);
+      return;
     }
     
-    return userRef;
+    try {
+      // Try to get existing profile
+      const existingProfile = await crewConnectService.getUserProfile(user.uid);
+      
+      if (existingProfile) {
+        setUserProfile(existingProfile);
+      } else {
+        // Create new profile for first-time users
+        const newProfile = await crewConnectService.createUserProfile({
+          username: user.email.split('@')[0],
+          displayName: user.displayName || user.email.split('@')[0],
+          profilePictureUrl: user.photoURL,
+          bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`
+        });
+        setUserProfile(newProfile);
+      }
+    } catch (error) {
+      console.error('Error handling user profile:', error);
+      // Create a minimal local profile if Firestore fails
+      setUserProfile({
+        firebaseUID: user.uid,
+        username: user.email.split('@')[0],
+        displayName: user.displayName || user.email.split('@')[0],
+        email: user.email,
+        profilePictureUrl: user.photoURL,
+        bio: `Hello! I'm ${user.displayName || 'new'} on CrewConnect!`,
+        createdAt: new Date(),
+        isOnline: true
+      });
+      setError('Database connection issues. Some features may be limited.');
+    }
   };
-
   // Sign up with email and password
   const signup = async (email, password, username) => {
     try {
@@ -80,8 +80,8 @@ export function AuthProvider({ children }) {
         displayName: username
       });
       
-      // Create user document in Firestore
-      await createUserDocument(result.user, { username });
+      // Create user profile using crewConnectService
+      await handleUserProfile(result.user);
       
       return result;
     } catch (error) {
@@ -95,7 +95,7 @@ export function AuthProvider({ children }) {
     try {
       setError(null);
       const result = await signInWithEmailAndPassword(auth, email, password);
-      await createUserDocument(result.user);
+      await handleUserProfile(result.user);
       return result;
     } catch (error) {
       setError(error.message);
@@ -108,7 +108,7 @@ export function AuthProvider({ children }) {
     try {
       setError(null);
       const result = await signInWithPopup(auth, googleProvider);
-      await createUserDocument(result.user);
+      await handleUserProfile(result.user);
       return result;
     } catch (error) {
       setError(error.message);
@@ -120,20 +120,33 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try {
       setError(null);
+      setLoading(true);
       
-      // Update user status to offline
-      if (currentUser) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
-          isOnline: false,
-          lastSeen: serverTimestamp()
-        });
+      // Update user status to offline if profile exists
+      if (userProfile) {
+        try {
+          await crewConnectService.updateUserProfile({
+            isOnline: false,
+          });
+        } catch (error) {
+          console.error('Error updating offline status:', error);
+          // Don't throw error, continue with logout
+        }
       }
       
-      return await signOut(auth);
+      // Clear user profile first
+      setUserProfile(null);
+      setCurrentUser(null);
+      
+      // Sign out from Firebase
+      await signOut(auth);
+      
+      return true;
     } catch (error) {
       setError(error.message);
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -196,17 +209,16 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Get user data from Firestore
+  // Get user data (updated to use crewConnectService)
   const getUserData = async (userId) => {
     try {
-      const userRef = doc(db, 'users', userId || currentUser.uid);
-      const userSnap = await getDoc(userRef);
-      
-      if (userSnap.exists()) {
-        return { id: userSnap.id, ...userSnap.data() };
+      if (userId) {
+        // If specific userId is provided, try to get that user's profile
+        return await crewConnectService.getUserProfile(userId);
+      } else {
+        // If no userId, return current user's profile
+        return userProfile || await crewConnectService.getUserProfile();
       }
-      
-      return null;
     } catch (error) {
       console.error('Error getting user data:', error);
       return null;
@@ -218,8 +230,10 @@ export function AuthProvider({ children }) {
       setCurrentUser(user);
       
       if (user) {
-        // Ensure user document exists and update online status
-        await createUserDocument(user);
+        // Handle user profile using crewConnectService
+        await handleUserProfile(user);
+      } else {
+        setUserProfile(null);
       }
       
       setLoading(false);
@@ -231,11 +245,9 @@ export function AuthProvider({ children }) {
   // Cleanup on unmount
   useEffect(() => {
     const handleBeforeUnload = async () => {
-      if (currentUser) {
-        const userRef = doc(db, 'users', currentUser.uid);
-        await updateDoc(userRef, {
+      if (userProfile) {
+        await crewConnectService.updateUserProfile({
           isOnline: false,
-          lastSeen: serverTimestamp()
         });
       }
     };
@@ -245,16 +257,17 @@ export function AuthProvider({ children }) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [currentUser]);
+  }, [userProfile]);
 
   const value = {
     currentUser,
+    userProfile,
     login,
     signup,
     logout,
     resetPassword,
     loginWithGoogle,
-    updateUserProfile,
+    updateUserProfile: crewConnectService.updateUserProfile.bind(crewConnectService),
     updateUserPassword,
     getUserData,
     error,

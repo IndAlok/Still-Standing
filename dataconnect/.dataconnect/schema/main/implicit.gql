@@ -1,0 +1,26 @@
+extend type Crew {
+  """
+  ✨ Implicit foreign key field based on `Crew`.`createdBy`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  createdById: UUID! @fdc_generated(from: "Crew.createdBy", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Membership {
+  """
+  ✨ Implicit foreign key field based on `Membership`.`user`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  userId: UUID! @fdc_generated(from: "Membership.user", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Membership`.`crew`. It must match the value of `Crew`.`id`. See `@ref` for how to customize it.
+  """
+  crewId: UUID! @fdc_generated(from: "Membership.crew", purpose: IMPLICIT_REF_FIELD)
+}
+extend type Message {
+  """
+  ✨ Implicit foreign key field based on `Message`.`crew`. It must match the value of `Crew`.`id`. See `@ref` for how to customize it.
+  """
+  crewId: UUID! @fdc_generated(from: "Message.crew", purpose: IMPLICIT_REF_FIELD)
+  """
+  ✨ Implicit foreign key field based on `Message`.`sender`. It must match the value of `User`.`id`. See `@ref` for how to customize it.
+  """
+  senderId: UUID! @fdc_generated(from: "Message.sender", purpose: IMPLICIT_REF_FIELD)
+}

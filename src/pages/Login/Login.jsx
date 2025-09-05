@@ -72,9 +72,11 @@ export default function LoginPage() {
     try {
       await login(email, password);
       setMessage("Login successful! Redirecting...");
-      setTimeout(() => navigate("/dashboard"), 1000);
+      // Immediate navigation without delay
+      navigate("/dashboard");
     } catch (err) {
-      setMessage(error || "Invalid credentials. Please try again");
+      console.error('Login error:', err);
+      setMessage(error || err.message || "Invalid credentials. Please try again");
     } finally {
       setIsLoading(false);
     }
@@ -88,9 +90,11 @@ export default function LoginPage() {
     try {
       await loginWithGoogle();
       setMessage("Google login successful! Redirecting...");
-      setTimeout(() => navigate("/dashboard"), 1000);
+      // Immediate navigation without delay
+      navigate("/dashboard");
     } catch (err) {
-      setMessage(error || "Google login failed");
+      console.error('Google login error:', err);
+      setMessage(error || err.message || "Google login failed");
     } finally {
       setIsGoogleLoading(false);
     }

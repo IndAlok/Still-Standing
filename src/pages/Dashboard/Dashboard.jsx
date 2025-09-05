@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import crewConnectService from '../../services/crewConnectService';
 import {
   Users,
   MessageCircle,
@@ -22,37 +23,89 @@ const Dashboard = () => {
   const { currentUser, logout, getUserData } = useAuth();
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
+  const [userGroups, setUserGroups] = useState([]);
+  const [recentMessages, setRecentMessages] = useState([]);
   const [stats, setStats] = useState({
     totalGroups: 0,
     totalMessages: 0,
     onlineMembers: 0,
     recentActivity: 0
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchDashboardData = async () => {
       if (currentUser) {
-        const data = await getUserData();
-        setUserData(data);
-        // Mock stats for now
-        setStats({
-          totalGroups: 5,
-          totalMessages: 142,
-          onlineMembers: 23,
-          recentActivity: 8
-        });
+        try {
+          setLoading(true);
+          
+          // Get user data
+          const data = await getUserData();
+          setUserData(data);
+
+          // Get user's groups
+          const groups = await crewConnectService.getUserCrews();
+          setUserGroups(groups);
+
+          // Calculate stats
+          let totalMessages = 0;
+          let onlineMembers = 0;
+          const recentMessagesData = [];
+
+          // Get recent messages from each group
+          for (const group of groups.slice(0, 3)) { // Limit to first 3 groups for recent messages
+            try {
+              const messages = await crewConnectService.getCrewMessages(group.id, 10);
+              const members = await crewConnectService.getCrewMembers(group.id);
+              
+              totalMessages += messages.length;
+              onlineMembers += members.filter(member => member.user.isOnline).length;
+              
+              if (messages.length > 0) {
+                recentMessagesData.push({
+                  groupId: group.id,
+                  groupName: group.name,
+                  lastMessage: messages[messages.length - 1],
+                  memberCount: members.length,
+                  onlineCount: members.filter(member => member.user.isOnline).length
+                });
+              }
+            } catch (error) {
+              console.error(`Error fetching data for group ${group.id}:`, error);
+            }
+          }
+
+          setRecentMessages(recentMessagesData);
+          setStats({
+            totalGroups: groups.length,
+            totalMessages,
+            onlineMembers,
+            recentActivity: recentMessagesData.filter(rm => 
+              rm.lastMessage && new Date() - rm.lastMessage.sentAt?.toDate() < 3600000
+            ).length // Messages in last hour
+          });
+
+        } catch (error) {
+          console.error('Error fetching dashboard data:', error);
+        } finally {
+          setLoading(false);
+        }
       }
     };
 
-    fetchUserData();
+    fetchDashboardData();
   }, [currentUser, getUserData]);
 
   const handleLogout = async () => {
     try {
+      console.log('Logging out...');
       await logout();
-      navigate('/login');
+      console.log('Logout successful, navigating to login');
+      navigate('/login', { replace: true });
     } catch (error) {
       console.error('Failed to logout:', error);
+      // Force navigation even if logout fails
+      navigate('/login', { replace: true });
     }
   };
 
@@ -122,10 +175,13 @@ const Dashboard = () => {
     }
   ];
 
-  if (!userData) {
+  if (loading || !userData) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-white/20 border-t-purple-500 rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-white/20 border-t-purple-500 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white/60">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -245,18 +301,40 @@ const Dashboard = () => {
               Recent Messages
             </h3>
             <div className="space-y-4">
-              {[1, 2, 3].map((_, index) => (
-                <div key={index} className="flex items-center space-x-3 p-3 hover:bg-white/5 rounded-lg transition-colors">
-                  <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-white" />
+              {recentMessages.length > 0 ? (
+                recentMessages.map((groupData, index) => (
+                  <div 
+                    key={index} 
+                    className="flex items-center space-x-3 p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                    onClick={() => navigate(`/chat/${groupData.groupId}`)}
+                  >
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                      <MessageCircle className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-white text-sm font-medium">{groupData.groupName}</p>
+                      <p className="text-gray-400 text-xs truncate max-w-48">
+                        {groupData.lastMessage?.sender?.displayName}: {groupData.lastMessage?.content || 'No messages yet'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="w-2 h-2 bg-green-400 rounded-full inline-block"></span>
+                      <p className="text-gray-500 text-xs mt-1">{groupData.onlineCount} online</p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">Group Chat #{index + 1}</p>
-                    <p className="text-gray-400 text-xs">Last message 2 minutes ago</p>
-                  </div>
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <MessageCircle className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">No recent messages</p>
+                  <button 
+                    onClick={() => navigate('/groups')}
+                    className="mt-2 text-blue-400 hover:text-blue-300 text-sm underline"
+                  >
+                    Join a group to start chatting
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -266,20 +344,45 @@ const Dashboard = () => {
               Your Groups
             </h3>
             <div className="space-y-4">
-              {[1, 2, 3].map((_, index) => (
-                <div key={index} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full flex items-center justify-center">
-                      <Shield className="w-5 h-5 text-white" />
+              {userGroups.length > 0 ? (
+                userGroups.slice(0, 3).map((group, index) => (
+                  <div 
+                    key={group.id} 
+                    className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors cursor-pointer"
+                    onClick={() => navigate(`/chat/${group.id}`)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-teal-500 rounded-full flex items-center justify-center">
+                        {group.membership?.role === 'admin' ? (
+                          <Shield className="w-5 h-5 text-white" />
+                        ) : (
+                          <Users className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">{group.name}</p>
+                        <p className="text-gray-400 text-xs">
+                          {group.membership?.role} • {group.description?.substring(0, 30)}...
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white text-sm font-medium">Tech Team</p>
-                      <p className="text-gray-400 text-xs">12 members</p>
-                    </div>
+                    <span className="text-xs text-green-400">
+                      {group.isPublic ? 'Public' : 'Private'}
+                    </span>
                   </div>
-                  <span className="text-xs text-green-400">Active</span>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">You haven't joined any groups yet</p>
+                  <button 
+                    onClick={() => navigate('/groups')}
+                    className="mt-2 text-blue-400 hover:text-blue-300 text-sm underline"
+                  >
+                    Browse groups to join
+                  </button>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         </div>

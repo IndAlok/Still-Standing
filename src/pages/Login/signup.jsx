@@ -89,9 +89,11 @@ export default function SignUpPage() {
     try {
       await signup(form.email, form.password, form.username);
       setMessage("Registration successful! Redirecting...");
-      setTimeout(() => navigate("/dashboard"), 1000);
+      // Immediate navigation without delay
+      navigate("/dashboard");
     } catch (err) {
-      setMessage(error || "Registration failed. Please try again.");
+      console.error('Signup error:', err);
+      setMessage(error || err.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -105,9 +107,11 @@ export default function SignUpPage() {
     try {
       await loginWithGoogle();
       setMessage("Google registration successful! Redirecting...");
-      setTimeout(() => navigate("/dashboard"), 1000);
+      // Immediate navigation without delay
+      navigate("/dashboard");
     } catch (err) {
-      setMessage(error || "Google registration failed");
+      console.error('Google signup error:', err);
+      setMessage(error || err.message || "Google registration failed");
     } finally {
       setIsGoogleLoading(false);
     }
