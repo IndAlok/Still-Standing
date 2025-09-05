@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useParams, Link } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
+import socketService from '../../services/socketService';
 import {
   Send,
   ArrowLeft,
@@ -70,13 +71,38 @@ const Chat = () => {
         const groupMessages = await crewConnectService.getCrewMessages(groupId);
         setMessages(groupMessages);
 
-        // Set up real-time listener for new messages
-        const unsubscribe = crewConnectService.subscribeToCrewMessages(groupId, (newMessages) => {
-          setMessages(newMessages);
-          setTimeout(scrollToBottom, 100); // Small delay to ensure messages are rendered
+        // Initialize Socket.IO for real-time chat
+        socketService.connect();
+        socketService.joinCrew(groupId);
+
+        // Set up Socket.IO listeners
+        socketService.onNewMessage((messageData) => {
+          if (messageData.crewId === groupId) {
+            setMessages(prevMessages => {
+              const messageExists = prevMessages.some(msg => msg.id === messageData.id);
+              if (!messageExists) {
+                return [...prevMessages, messageData].sort((a, b) => 
+                  new Date(a.sentAt?.toDate ? a.sentAt.toDate() : a.sentAt) - 
+                  new Date(b.sentAt?.toDate ? b.sentAt.toDate() : b.sentAt)
+                );
+              }
+              return prevMessages;
+            });
+            setTimeout(scrollToBottom, 100);
+          }
         });
 
-        return () => unsubscribe && unsubscribe();
+        // Set up Firestore fallback listener for reliability
+        const unsubscribe = crewConnectService.subscribeToCrewMessages(groupId, (newMessages) => {
+          setMessages(newMessages);
+          setTimeout(scrollToBottom, 100);
+        });
+
+        return () => {
+          unsubscribe && unsubscribe();
+          socketService.leaveCrew(groupId);
+          socketService.offAllListeners();
+        };
       } catch (error) {
         console.error('Error initializing chat:', error);
         setError('Failed to load chat. Please try again.');
@@ -103,12 +129,28 @@ const Chat = () => {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!message.trim() || sending) return;
+    if (!message.trim() || sending || !currentUser) return;
 
     try {
       setSending(true);
       setError('');
       
+      // Send via Socket.IO for instant delivery
+      const messageData = {
+        crewId: groupId,
+        message: message.trim(),
+        senderId: currentUser?.uid,
+        sentAt: new Date().toISOString(),
+        sender: {
+          displayName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
+          username: currentUser?.email?.split('@')[0] || 'user'
+        }
+      };
+
+      // Try Socket.IO first
+      socketService.sendMessage(messageData);
+      
+      // Also save to Firestore for persistence
       await crewConnectService.sendMessage(groupId, message.trim());
       setMessage('');
       
@@ -168,7 +210,7 @@ const Chat = () => {
     );
   }
 
-  const onlineMembers = groupMembers.filter(member => member.user.isOnline);
+  const onlineMembers = (groupMembers || []).filter(member => member && member.isOnline);
 
   return (
     <div className="h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col">
@@ -249,9 +291,9 @@ const Chat = () => {
             <p className="text-gray-400">This is the beginning of your conversation in this group.</p>
           </div>
         ) : (
-          messages.map((msg, index) => {
+          (messages || []).map((msg, index) => {
             const isOwnMessage = msg.senderId === currentUser?.uid || msg.sender?.firebaseUID === currentUser?.uid;
-            const showAvatar = index === 0 || messages[index - 1].senderId !== msg.senderId;
+            const showAvatar = index === 0 || messages[index - 1]?.senderId !== msg.senderId;
             
             return (
               <div key={msg.id} className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} space-x-3`}>
@@ -261,7 +303,7 @@ const Chat = () => {
                       msg.sender?.profilePictureUrl ? (
                         <img
                           src={msg.sender.profilePictureUrl}
-                          alt={msg.sender.displayName}
+                          alt={msg.sender?.displayName || 'User'}
                           className="w-8 h-8 object-cover"
                         />
                       ) : (
@@ -354,13 +396,13 @@ const Chat = () => {
             </div>
             
             <div className="p-4 space-y-3">
-              {groupMembers.map((member) => (
-                <div key={member.user.id} className="flex items-center space-x-3">
+              {(groupMembers || []).map((member) => (
+                <div key={member.uid || member.id} className="flex items-center space-x-3">
                   <div className="relative">
-                    {member.user.profilePictureUrl ? (
+                    {member.profilePictureUrl ? (
                       <img
-                        src={member.user.profilePictureUrl}
-                        alt={member.user.displayName}
+                        src={member.profilePictureUrl}
+                        alt={member.displayName}
                         className="w-10 h-10 rounded-full object-cover"
                       />
                     ) : (
@@ -368,18 +410,18 @@ const Chat = () => {
                         <User className="w-5 h-5 text-white" />
                       </div>
                     )}
-                    {member.user.isOnline && (
+                    {member.isOnline && (
                       <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-slate-800 rounded-full"></div>
                     )}
                   </div>
                   
                   <div className="flex-1">
-                    <p className="text-white font-medium">{member.user.displayName || member.user.username}</p>
-                    <p className="text-xs text-gray-400 capitalize">{member.role}</p>
+                    <p className="text-white font-medium">{member.displayName || member.username}</p>
+                    <p className="text-xs text-gray-400 capitalize">{member.isCreator ? 'Creator' : 'Member'}</p>
                   </div>
                   
                   <div className="text-right">
-                    {member.user.isOnline ? (
+                    {member.isOnline ? (
                       <span className="text-xs text-green-400">Online</span>
                     ) : (
                       <span className="text-xs text-gray-500">Offline</span>

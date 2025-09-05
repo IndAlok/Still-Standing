@@ -18,6 +18,9 @@ import {
   serverTimestamp,
   arrayUnion,
   arrayRemove,
+  setDoc,
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
@@ -101,8 +104,8 @@ class CrewConnectService {
 
       // Get user profile, create one if it doesn't exist
       let userProfile = await this.getUserProfile();
+      
       if (!userProfile) {
-        console.log('User profile not found, creating one...');
         userProfile = await this.createUserProfile({
           username: user.email.split('@')[0],
           displayName: user.displayName || user.email.split('@')[0],
@@ -115,7 +118,8 @@ class CrewConnectService {
         description,
         isPublic,
         maxMembers: 100,
-        createdBy: userProfile.id,
+        createdBy: user.uid, // Use Firebase Auth UID
+        members: [user.uid], // Add creator to members array
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         avatarUrl: null,
@@ -124,8 +128,16 @@ class CrewConnectService {
 
       const crewRef = await addDoc(collection(db, 'crews'), crewData);
       
-      // Add creator as admin member
-      await this.joinCrew(crewRef.id, 'admin');
+      // Create membership record for creator
+      const membershipRef = doc(collection(db, 'memberships'));
+      await setDoc(membershipRef, {
+        id: membershipRef.id,
+        userId: user.uid,
+        crewId: crewRef.id,
+        role: 'admin',
+        isActive: true,
+        joinedAt: serverTimestamp()
+      });
       
       return { id: crewRef.id, ...crewData };
     } catch (error) {
@@ -149,9 +161,14 @@ class CrewConnectService {
         
         // Get creator info
         if (crewData.createdBy) {
-          const creatorDoc = await getDoc(doc(db, 'users', crewData.createdBy));
-          if (creatorDoc.exists()) {
-            crewData.createdByUser = creatorDoc.data();
+          // Find user by their Firebase UID
+          const creatorQuery = query(
+            collection(db, 'users'),
+            where('firebaseUID', '==', crewData.createdBy)
+          );
+          const creatorSnapshot = await getDocs(creatorQuery);
+          if (!creatorSnapshot.empty) {
+            crewData.createdByUser = creatorSnapshot.docs[0].data();
           }
         }
         
@@ -176,7 +193,7 @@ class CrewConnectService {
       // Get memberships
       const membershipQuery = query(
         collection(db, 'memberships'),
-        where('userId', '==', userProfile.id),
+        where('userId', '==', user.uid), // Use Firebase Auth UID
         where('isActive', '==', true)
       );
       const membershipSnapshot = await getDocs(membershipQuery);
@@ -218,7 +235,7 @@ class CrewConnectService {
       // Check if already a member
       const existingMembership = query(
         collection(db, 'memberships'),
-        where('userId', '==', userProfile.id),
+        where('userId', '==', user.uid), // Use Firebase Auth UID
         where('crewId', '==', crewId),
         where('isActive', '==', true)
       );
@@ -229,7 +246,7 @@ class CrewConnectService {
       }
 
       const membershipData = {
-        userId: userProfile.id,
+        userId: user.uid, // Use Firebase Auth UID instead of profile document ID
         crewId,
         role,
         joinedAt: serverTimestamp(),
@@ -257,7 +274,7 @@ class CrewConnectService {
 
       const messageData = {
         crewId,
-        senderId: userProfile.id,
+        senderId: user.uid, // Use Firebase Auth UID
         content,
         messageType,
         sentAt: serverTimestamp(),
@@ -301,9 +318,14 @@ class CrewConnectService {
         
         // Get sender info
         if (messageData.senderId) {
-          const senderDoc = await getDoc(doc(db, 'users', messageData.senderId));
-          if (senderDoc.exists()) {
-            messageData.sender = senderDoc.data();
+          // Find user by their Firebase UID
+          const senderQuery = query(
+            collection(db, 'users'),
+            where('firebaseUID', '==', messageData.senderId)
+          );
+          const senderSnapshot = await getDocs(senderQuery);
+          if (!senderSnapshot.empty) {
+            messageData.sender = senderSnapshot.docs[0].data();
           }
         }
         
@@ -366,9 +388,14 @@ class CrewConnectService {
         
         // Get sender info
         if (messageData.senderId) {
-          const senderDoc = await getDoc(doc(db, 'users', messageData.senderId));
-          if (senderDoc.exists()) {
-            messageData.sender = senderDoc.data();
+          // Find user by their Firebase UID
+          const senderQuery = query(
+            collection(db, 'users'),
+            where('firebaseUID', '==', messageData.senderId)
+          );
+          const senderSnapshot = await getDocs(senderQuery);
+          if (!senderSnapshot.empty) {
+            messageData.sender = senderSnapshot.docs[0].data();
           }
         }
         
@@ -394,9 +421,14 @@ class CrewConnectService {
         // Get creator info
         if (crewData.createdBy) {
           try {
-            const creatorDoc = await getDoc(doc(db, 'users', crewData.createdBy));
-            if (creatorDoc.exists()) {
-              crewData.createdByUser = creatorDoc.data();
+            // Find user by their Firebase UID
+            const creatorQuery = query(
+              collection(db, 'users'),
+              where('firebaseUID', '==', crewData.createdBy)
+            );
+            const creatorSnapshot = await getDocs(creatorQuery);
+            if (!creatorSnapshot.empty) {
+              crewData.createdByUser = creatorSnapshot.docs[0].data();
             }
           } catch (error) {
             console.error('Error fetching creator info:', error);
@@ -504,7 +536,7 @@ class CrewConnectService {
       // Find and deactivate membership
       const membershipQuery = query(
         collection(db, 'memberships'),
-        where('userId', '==', userProfile.id),
+        where('userId', '==', user.uid), // Use Firebase Auth UID
         where('crewId', '==', crewId),
         where('isActive', '==', true)
       );
@@ -523,6 +555,166 @@ class CrewConnectService {
       return true;
     } catch (error) {
       console.error('Error leaving crew:', error);
+      throw error;
+    }
+  }
+
+  // Delete a crew (creator only)
+  async deleteCrew(crewId) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Check if user is the creator
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      if (crewData.createdBy !== user.uid) {
+        throw new Error('Only the creator can delete this crew');
+      }
+
+      // Delete all associated data using batch
+      const batch = writeBatch(db);
+
+      // Delete crew document
+      batch.delete(doc(db, 'crews', crewId));
+
+      // Delete all memberships for this crew
+      const membershipQuery = query(
+        collection(db, 'memberships'),
+        where('crewId', '==', crewId)
+      );
+      const membershipSnapshot = await getDocs(membershipQuery);
+      membershipSnapshot.docs.forEach(membershipDoc => {
+        batch.delete(doc(db, 'memberships', membershipDoc.id));
+      });
+
+      // Delete all messages for this crew
+      const messagesQuery = query(
+        collection(db, 'messages'),
+        where('crewId', '==', crewId)
+      );
+      const messagesSnapshot = await getDocs(messagesQuery);
+      messagesSnapshot.docs.forEach(messageDoc => {
+        batch.delete(doc(db, 'messages', messageDoc.id));
+      });
+
+      await batch.commit();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting crew:', error);
+      throw error;
+    }
+  }
+
+  // Add member to crew by email
+  async addMemberToCrew(crewId, userEmail) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Check if current user is crew creator or admin
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      const members = crewData.members || [];
+      if (crewData.createdBy !== user.uid && !members.includes(user.uid)) {
+        throw new Error('Only crew members can add new members');
+      }
+
+      // Find user by email
+      const userQuery = query(
+        collection(db, 'users'),
+        where('email', '==', userEmail)
+      );
+      const userSnapshot = await getDocs(userQuery);
+      
+      if (userSnapshot.empty) {
+        throw new Error('User not found with this email');
+      }
+
+      const userData = userSnapshot.docs[0].data();
+      const newMemberUid = userData.firebaseUID;
+
+      // Check if user is already a member
+      if (members.includes(newMemberUid)) {
+        throw new Error('User is already a member of this crew');
+      }
+
+      // Add user to crew members
+      await updateDoc(doc(db, 'crews', crewId), {
+        members: [...members, newMemberUid],
+        updatedAt: Timestamp.now()
+      });
+
+      // Create membership record
+      const membershipRef = doc(collection(db, 'memberships'));
+      await setDoc(membershipRef, {
+        id: membershipRef.id,
+        userId: newMemberUid,
+        crewId: crewId,
+        role: 'member',
+        isActive: true,
+        joinedAt: Timestamp.now()
+      });
+
+      return { success: true, memberName: userData.displayName || userData.username };
+    } catch (error) {
+      console.error('Error adding member to crew:', error);
+      throw error;
+    }
+  }
+
+  // Get crew members list
+  async getCrewMembers(crewId) {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error('User not authenticated');
+
+      // Get crew data to verify access
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+
+      const crewData = crewDoc.data();
+      const members = crewData.members || [];
+      if (!members.includes(user.uid)) {
+        throw new Error('Access denied: Not a member of this crew');
+      }
+
+      // Get all member details
+      const membersData = [];
+      for (const memberUid of members) {
+        const memberQuery = query(
+          collection(db, 'users'),
+          where('firebaseUID', '==', memberUid)
+        );
+        const memberSnapshot = await getDocs(memberQuery);
+        if (!memberSnapshot.empty) {
+          const memberData = memberSnapshot.docs[0].data();
+          membersData.push({
+            uid: memberUid,
+            username: memberData.username,
+            displayName: memberData.displayName,
+            email: memberData.email,
+            isOnline: memberData.isOnline || false,
+            profilePictureUrl: memberData.profilePictureUrl,
+            lastActiveAt: memberData.lastActiveAt,
+            isCreator: memberUid === crewData.createdBy
+          });
+        }
+      }
+
+      return membersData;
+    } catch (error) {
+      console.error('Error getting crew members:', error);
       throw error;
     }
   }

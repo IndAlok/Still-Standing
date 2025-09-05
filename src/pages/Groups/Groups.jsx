@@ -34,6 +34,15 @@ const Groups = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // New states for additional features
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteGroupId, setDeleteGroupId] = useState(null);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [addMemberGroupId, setAddMemberGroupId] = useState(null);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+
   // Form states
   const [createForm, setCreateForm] = useState({
     name: '',
@@ -145,6 +154,74 @@ const Groups = () => {
     }
   };
 
+  const handleDeleteGroup = async () => {
+    try {
+      setError('');
+      setLoading(true);
+      
+      await crewConnectService.deleteCrew(deleteGroupId);
+      setSuccess('Group deleted successfully!');
+      setShowDeleteConfirm(false);
+      setDeleteGroupId(null);
+      
+      // Refresh data
+      await fetchData();
+      
+    } catch (error) {
+      console.error('Error deleting group:', error);
+      setError(error.message || 'Failed to delete group');
+      setShowDeleteConfirm(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      setLoading(true);
+      
+      if (!memberEmail.trim()) {
+        setError('Please enter an email address');
+        return;
+      }
+
+      const result = await crewConnectService.addMemberToCrew(addMemberGroupId, memberEmail.trim());
+      setSuccess(`${result.memberName} has been added to the group!`);
+      setShowAddMemberModal(false);
+      setAddMemberGroupId(null);
+      setMemberEmail('');
+      
+      // Refresh data
+      await fetchData();
+      
+    } catch (error) {
+      console.error('Error adding member:', error);
+      setError(error.message || 'Failed to add member');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleViewMembers = async (groupId) => {
+    try {
+      setLoading(true);
+      const members = await crewConnectService.getCrewMembers(groupId);
+      setSelectedGroupMembers(members);
+      setShowMembersModal(true);
+    } catch (error) {
+      console.error('Error fetching members:', error);
+      setError(error.message || 'Failed to load members');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMemberEmailChange = useCallback((e) => {
+    setMemberEmail(e.target.value);
+  }, []);
+
   const filteredGroups = (activeTab === 'my-groups' ? myGroups : publicGroups).filter(group =>
     group.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     group.description.toLowerCase().includes(searchQuery.toLowerCase())
@@ -215,13 +292,47 @@ const Groups = () => {
             )}
             
             {isUserMember && (
-              <Link
-                to={`/chat/${group.id}`}
-                className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg font-medium hover:from-green-600 hover:to-teal-600 transition-colors flex items-center space-x-2"
-              >
-                <MessageCircle className="w-4 h-4" />
-                <span>Chat</span>
-              </Link>
+              <>
+                <button
+                  onClick={() => handleViewMembers(group.id)}
+                  className="bg-gray-600 text-white px-3 py-2 rounded-lg hover:bg-gray-500 transition-colors"
+                  title="View Members"
+                >
+                  <Users className="w-4 h-4" />
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setAddMemberGroupId(group.id);
+                    setShowAddMemberModal(true);
+                  }}
+                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-500 transition-colors"
+                  title="Add Member"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+                
+                <Link
+                  to={`/chat/${group.id}`}
+                  className="bg-gradient-to-r from-green-500 to-teal-500 text-white px-4 py-2 rounded-lg font-medium hover:from-green-600 hover:to-teal-600 transition-colors flex items-center space-x-2"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Chat</span>
+                </Link>
+                
+                {group.createdBy === currentUser?.uid && (
+                  <button
+                    onClick={() => {
+                      setDeleteGroupId(group.id);
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-500 transition-colors"
+                    title="Delete Group"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -458,6 +569,133 @@ const Groups = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/10 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-white">Delete Group</h2>
+                  <p className="text-gray-400">This action cannot be undone</p>
+                </div>
+              </div>
+              
+              <p className="text-gray-300 mb-6">
+                Are you sure you want to delete this group? All messages, members, and data will be permanently deleted.
+              </p>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 bg-white/5 border border-white/10 text-white px-4 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteGroup}
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-3 rounded-lg font-medium hover:from-red-600 hover:to-red-700 transition-colors disabled:opacity-50"
+                >
+                  {loading ? 'Deleting...' : 'Delete Group'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/10 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Add Member</h2>
+                <button
+                  onClick={() => setShowAddMemberModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddMember} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={memberEmail}
+                    onChange={handleMemberEmailChange}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    placeholder="Enter member's email..."
+                    required
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAddMemberModal(false)}
+                    className="flex-1 bg-white/5 border border-white/10 text-white px-4 py-3 rounded-lg font-medium hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-3 rounded-lg font-medium hover:from-blue-600 hover:to-purple-600 transition-colors disabled:opacity-50"
+                  >
+                    {loading ? 'Adding...' : 'Add Member'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Members Modal */}
+      {showMembersModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-white/10 w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-white">Group Members</h2>
+                <button
+                  onClick={() => setShowMembersModal(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {selectedGroupMembers.map((member) => (
+                  <div key={member.uid} className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                      <User className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-2">
+                        <p className="font-medium text-white">{member.displayName}</p>
+                        {member.isCreator && <Crown className="w-4 h-4 text-yellow-400" />}
+                      </div>
+                      <p className="text-sm text-gray-400">@{member.username}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
