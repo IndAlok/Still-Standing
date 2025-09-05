@@ -9,6 +9,7 @@ import Profile from "./pages/Profile/Profile";
 import Groups from "./pages/Groups/Groups";
 import Chat from "./pages/Chat/Chat";
 import Settings from "./pages/Settings/Settings";
+import LandingPage from "./pages/LandingPage/landing";
 
 function App() {
   return (
@@ -18,52 +19,52 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<SignUpPage />} />
-          
+
           {/* Protected Routes */}
-          <Route 
-            path="/dashboard" 
+          <Route
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/profile" 
+          <Route
+            path="/profile"
             element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/groups" 
+          <Route
+            path="/groups"
             element={
               <ProtectedRoute>
                 <Groups />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/chat/:groupId?" 
+          <Route
+            path="/chat/:groupId?"
             element={
               <ProtectedRoute>
                 <Chat />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route 
-            path="/settings" 
+          <Route
+            path="/settings"
             element={
               <ProtectedRoute>
                 <Settings />
               </ProtectedRoute>
-            } 
+            }
           />
-          
+
           {/* Default redirect */}
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-          <Route path="*" element={<Navigate to="/dashboard" />} />
+          <Route path="/" element={<LandingPage />} />
+          {/* <Route path="*" element={<Navigate to="/dashboard" />} /> */}
         </Routes>
       </div>
     </AuthProvider>
