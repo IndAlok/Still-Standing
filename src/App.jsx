@@ -10,6 +10,7 @@ import Groups from "./pages/Groups/Groups";
 import Chat from "./pages/Chat/Chat";
 import Settings from "./pages/Settings/Settings";
 import LandingPage from "./pages/LandingPage/landing";
+import UserProfilePage from "./pages/Profile/ProfilePage";
 
 function App() {
   return (
@@ -29,14 +30,14 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
+          {/* <Route
             path="/profile"
             element={
               <ProtectedRoute>
                 <Profile />
               </ProtectedRoute>
             }
-          />
+          /> */}
           <Route
             path="/groups"
             element={
@@ -64,6 +65,7 @@ function App() {
 
           {/* Default redirect */}
           <Route path="/" element={<LandingPage />} />
+          <Route path="/profile" element={<UserProfilePage />} />
           {/* <Route path="*" element={<Navigate to="/dashboard" />} /> */}
         </Routes>
       </div>
