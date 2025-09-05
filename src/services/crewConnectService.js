@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import cacheService from './cacheService';
 
 class CrewConnectService {
   // User Operations
@@ -190,6 +191,13 @@ class CrewConnectService {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
+      const cacheKey = `user_crews_${user.uid}`;
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log('🎯 Using cached user crews');
+        return cached;
+      }
+
       const userProfile = await this.getUserProfile();
       if (!userProfile) return [];
 
@@ -202,9 +210,22 @@ class CrewConnectService {
       const membershipSnapshot = await getDocs(membershipQuery);
       
       const crews = [];
+      const seenCrewIds = new Set(); // Prevent duplicates
+      
       for (const membershipDoc of membershipSnapshot.docs) {
         const membershipData = membershipDoc.data();
-        const crewDoc = await getDoc(doc(db, 'crews', membershipData.crewId));
+        const crewId = membershipData.crewId;
+        
+        // Skip if we've already processed this crew
+        if (seenCrewIds.has(crewId)) {
+          console.warn(`Duplicate membership found for crew ${crewId}, cleaning up...`);
+          // Clean up duplicate membership (async, doesn't block UI)
+          this.cleanupDuplicateMembership(crewId, user.uid).catch(console.error);
+          continue;
+        }
+        
+        seenCrewIds.add(crewId);
+        const crewDoc = await getDoc(doc(db, 'crews', crewId));
         
         if (crewDoc.exists()) {
           const crewData = crewDoc.data();
@@ -212,7 +233,7 @@ class CrewConnectService {
           // Run consistency check for crews where user is creator
           if (crewData.createdBy === user.uid) {
             // Ensure creator has proper membership (async, doesn't block UI)
-            this.ensureCreatorMembership(membershipData.crewId).catch(console.error);
+            this.ensureCreatorMembership(crewId).catch(console.error);
           }
           
           crews.push({
@@ -228,10 +249,47 @@ class CrewConnectService {
         }
       }
       
+      // Cache for 2 minutes
+      cacheService.set(cacheKey, crews, 120000);
+      console.log('🎯 Cached user crews');
+      
       return crews;
     } catch (error) {
       console.error('Error getting user crews:', error);
       throw error;
+    }
+  }
+
+  // Clean up duplicate memberships
+  async cleanupDuplicateMembership(crewId, userId) {
+    try {
+      console.log('🧹 Cleaning up duplicate memberships for crew:', crewId, 'user:', userId);
+      
+      const membershipQuery = query(
+        collection(db, 'memberships'),
+        where('crewId', '==', crewId),
+        where('userId', '==', userId),
+        where('isActive', '==', true)
+      );
+      
+      const snapshot = await getDocs(membershipQuery);
+      
+      if (snapshot.size <= 1) {
+        console.log('🧹 No duplicates found');
+        return;
+      }
+      
+      console.log('🧹 Found', snapshot.size, 'duplicate memberships, keeping the first one');
+      
+      // Keep the first (oldest) membership, delete the rest
+      const docs = snapshot.docs;
+      for (let i = 1; i < docs.length; i++) {
+        await deleteDoc(docs[i].ref);
+        console.log('🧹 Deleted duplicate membership:', docs[i].id);
+      }
+      
+    } catch (error) {
+      console.error('Error cleaning up duplicate memberships:', error);
     }
   }
 
@@ -243,6 +301,14 @@ class CrewConnectService {
       const userProfile = await this.getUserProfile();
       if (!userProfile) throw new Error('User profile not found');
 
+      // Get crew info first
+      const crewDoc = await getDoc(doc(db, 'crews', crewId));
+      if (!crewDoc.exists()) {
+        throw new Error('Crew not found');
+      }
+      
+      const crewData = crewDoc.data();
+      
       // Check if already a member
       const existingMembership = query(
         collection(db, 'memberships'),
@@ -254,6 +320,11 @@ class CrewConnectService {
       
       if (!existingSnapshot.empty) {
         throw new Error('Already a member of this crew');
+      }
+
+      // For private groups, only allow joining through invitation
+      if (!crewData.isPublic) {
+        throw new Error('This is a private group. You need an invitation to join.');
       }
 
       const membershipData = {
@@ -269,18 +340,22 @@ class CrewConnectService {
       const membershipRef = await addDoc(collection(db, 'memberships'), membershipData);
       
       // Also update the crew's members array
-      const crewDoc = await getDoc(doc(db, 'crews', crewId));
-      if (crewDoc.exists()) {
-        const crewData = crewDoc.data();
-        const currentMembers = crewData.members || [];
+      const crewDocRef = await getDoc(doc(db, 'crews', crewId));
+      if (crewDocRef.exists()) {
+        const updatedCrewData = crewDocRef.data();
+        const currentMembers = updatedCrewData.members || [];
         if (!currentMembers.includes(user.uid)) {
           await updateDoc(doc(db, 'crews', crewId), {
             members: [...currentMembers, user.uid],
-            memberCount: (crewData.memberCount || 0) + 1,
+            memberCount: (updatedCrewData.memberCount || 0) + 1,
             updatedAt: serverTimestamp()
           });
         }
       }
+      
+      // Clear crew caches since membership changed
+      cacheService.invalidate(`user_crews_${user.uid}`);
+      console.log('🎯 Cleared crew cache for user', user.uid);
       
       return { id: membershipRef.id, ...membershipData };
     } catch (error) {
@@ -311,6 +386,10 @@ class CrewConnectService {
 
       const messageRef = await addDoc(collection(db, 'messages'), messageData);
       
+      // Invalidate message caches for this crew
+      cacheService.invalidate(`crew_messages_${crewId}`);
+      console.log('🎯 Invalidated message cache for crew', crewId);
+      
       return {
         id: messageRef.id,
         ...messageData,
@@ -329,6 +408,13 @@ class CrewConnectService {
 
   async getCrewMessages(crewId, messageLimit = 50) {
     try {
+      const cacheKey = `crew_messages_${crewId}_${messageLimit}`;
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log('🎯 Using cached crew messages for', crewId);
+        return cached;
+      }
+
       const q = query(
         collection(db, 'messages'),
         where('crewId', '==', crewId),
@@ -358,7 +444,13 @@ class CrewConnectService {
         messages.push(messageData);
       }
       
-      return messages.reverse(); // Return in chronological order
+      const result = messages.reverse(); // Return in chronological order
+      
+      // Cache for 30 seconds (messages update frequently)
+      cacheService.set(cacheKey, result, 30000);
+      console.log('🎯 Cached crew messages for', crewId);
+      
+      return result;
     } catch (error) {
       console.error('Error getting crew messages:', error);
       throw error;
@@ -737,16 +829,16 @@ class CrewConnectService {
 
       const requestsQuery = query(
         collection(db, 'joinRequests'),
-        where('crewId', '==', crewId),
-        where('status', '==', status),
-        orderBy('createdAt', 'desc')
+        where('crewId', '==', crewId)
       );
 
       const snapshot = await getDocs(requestsQuery);
-      return snapshot.docs.map(doc => ({
+      const requests = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      }));
+      })).filter(req => req.status === status); // Filter in memory
+
+      return requests;
     } catch (error) {
       console.error('Error getting join requests:', error);
       throw error;
@@ -965,18 +1057,41 @@ class CrewConnectService {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
+      console.log('🔍 DEBUG: Fetching invitations for user:', user.uid, 'with status:', status);
+
+      const cacheKey = `user_invitations_${user.uid}_${status}`;
+      const cached = cacheService.get(cacheKey);
+      if (cached) {
+        console.log('🎯 Using cached user invitations');
+        return cached;
+      }
+
+      // Single where clause to avoid composite index
       const invitationsQuery = query(
         collection(db, 'invitations'),
-        where('invitedUserId', '==', user.uid),
-        where('status', '==', status),
-        orderBy('createdAt', 'desc')
+        where('invitedUserId', '==', user.uid)
       );
 
       const snapshot = await getDocs(invitationsQuery);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+      console.log('🔍 DEBUG: Query returned', snapshot.size, 'documents');
+
+      const invitations = snapshot.docs.map(doc => {
+        const data = doc.data();
+        console.log('🔍 DEBUG: Invitation document:', { id: doc.id, status: data.status, invitedUserId: data.invitedUserId });
+        return {
+          id: doc.id,
+          ...data
+        };
+      }).filter(inv => inv.status === status); // Filter in memory instead of query
+
+      console.log('🔍 DEBUG: Returning', invitations.length, 'filtered invitations');
+      
+      // Cache for 1 minute (invitations change frequently)
+      cacheService.set(cacheKey, invitations, 60000);
+      console.log('🎯 Cached user invitations');
+      
+      return invitations;
+
     } catch (error) {
       console.error('Error getting user invitations:', error);
       throw error;
@@ -986,6 +1101,8 @@ class CrewConnectService {
   // Handle invitation (accept/decline)
   async handleInvitation(invitationId, action) {
     try {
+      console.log('🎯 DEBUG: Handling invitation', invitationId, 'with action', action);
+      
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
@@ -996,6 +1113,13 @@ class CrewConnectService {
       }
 
       const invitationData = invitationDoc.data();
+      console.log('🎯 DEBUG: Invitation data:', invitationData);
+
+      // Check if already handled
+      if (invitationData.status !== 'pending') {
+        console.log('🎯 DEBUG: Invitation already handled with status:', invitationData.status);
+        throw new Error(`Invitation was already ${invitationData.status}`);
+      }
 
       // Verify this invitation is for the current user
       if (invitationData.invitedUserId !== user.uid) {
@@ -1003,13 +1127,32 @@ class CrewConnectService {
       }
 
       // Update invitation status
+      console.log('🎯 DEBUG: Updating invitation status to', action);
       await updateDoc(doc(db, 'invitations', invitationId), {
         status: action,
         handledAt: serverTimestamp()
       });
 
+      // Clear invitation caches
+      cacheService.invalidate(`user_invitations_${user.uid}`);
+      console.log('🎯 Cleared invitation cache for user', user.uid);
+
       // If accepted, add user to crew
       if (action === 'accepted') {
+        // Check if user is already a member
+        const existingMembershipQuery = query(
+          collection(db, 'memberships'),
+          where('userId', '==', user.uid),
+          where('crewId', '==', invitationData.crewId),
+          where('isActive', '==', true)
+        );
+        const existingMembershipSnapshot = await getDocs(existingMembershipQuery);
+        
+        if (!existingMembershipSnapshot.empty) {
+          console.log('🎯 DEBUG: User is already a member, skipping membership creation');
+          return { success: true, action, message: 'Already a member of this group' };
+        }
+
         const membershipData = {
           userId: user.uid,
           crewId: invitationData.crewId,
@@ -1035,6 +1178,10 @@ class CrewConnectService {
             });
           }
         }
+        
+        // Clear crew caches since membership changed
+        cacheService.invalidate(`user_crews_${user.uid}`);
+        console.log('🎯 Cleared crew cache for user', user.uid);
       }
 
       return { success: true, action };

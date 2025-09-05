@@ -19,6 +19,7 @@ const InvitationManager = () => {
   const [joinRequests, setJoinRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('received'); // received, sent
   const [loading, setLoading] = useState(true);
+  const [processingInvitation, setProcessingInvitation] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
 
   useEffect(() => {
@@ -69,7 +70,15 @@ const InvitationManager = () => {
   };
 
   const handleInvitation = async (invitationId, action) => {
+    if (processingInvitation === invitationId) {
+      console.log('Already processing invitation', invitationId);
+      return; // Prevent double-clicking
+    }
+
     try {
+      setProcessingInvitation(invitationId);
+      console.log('Handling invitation:', invitationId, action);
+      
       await crewConnectService.handleInvitation(invitationId, action);
       
       // Remove from list
@@ -85,6 +94,8 @@ const InvitationManager = () => {
     } catch (error) {
       console.error('Error handling invitation:', error);
       alert(error.message);
+    } finally {
+      setProcessingInvitation(null);
     }
   };
 
@@ -206,17 +217,27 @@ const InvitationManager = () => {
                     <div className="flex space-x-2 ml-4">
                       <button
                         onClick={() => handleInvitation(invitation.id, 'accepted')}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        disabled={processingInvitation === invitation.id}
+                        className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors ${
+                          processingInvitation === invitation.id 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-green-500 hover:bg-green-600'
+                        }`}
                       >
                         <Check className="w-4 h-4 inline mr-1" />
-                        Accept
+                        {processingInvitation === invitation.id ? 'Processing...' : 'Accept'}
                       </button>
                       <button
                         onClick={() => handleInvitation(invitation.id, 'declined')}
-                        className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+                        disabled={processingInvitation === invitation.id}
+                        className={`px-4 py-2 text-white rounded-lg text-sm font-medium transition-colors ${
+                          processingInvitation === invitation.id 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-red-500 hover:bg-red-600'
+                        }`}
                       >
                         <X className="w-4 h-4 inline mr-1" />
-                        Decline
+                        {processingInvitation === invitation.id ? 'Processing...' : 'Decline'}
                       </button>
                     </div>
                   </div>

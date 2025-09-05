@@ -118,6 +118,7 @@ const Chat = () => {
 
         // Get messages
         const groupMessages = await crewConnectService.getCrewMessages(groupId);
+        console.log('📨 DEBUG: Fetched messages:', groupMessages);
         setMessages(groupMessages || []);
 
         // Join socket room for real-time updates
@@ -466,7 +467,7 @@ const Chat = () => {
                         : 'bg-white/10 text-white backdrop-blur-sm'
                     }`}
                   >
-                    <p className="text-sm">{msg.content}</p>
+                    <p className="text-sm">{msg.content || msg.message || 'Empty message'}</p>
                   </div>
                   
                   <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right mr-1' : 'ml-1'}`}>

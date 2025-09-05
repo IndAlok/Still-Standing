@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
@@ -46,7 +46,7 @@ const Dashboard = () => {
     const fetchDashboardData = async () => {
       console.log('Dashboard useEffect triggered, currentUser:', currentUser?.uid);
       
-      if (!currentUser) {
+      if (!currentUser?.uid) {
         console.log('No current user, setting loading to false');
         setLoading(false);
         return;
@@ -73,56 +73,58 @@ const Dashboard = () => {
         setUserGroups(userGroups);
         console.log('User groups fetched:', userGroups);
 
-        // Fetch pending invitations count
-        try {
-          const invitations = await crewConnectService.getUserInvitations(currentUser.uid);
-          const pendingCount = invitations.filter(inv => inv.status === 'pending').length;
+        // Fetch pending invitations and recent messages in parallel
+        const [invitationsResult, ...messageResults] = await Promise.allSettled([
+          crewConnectService.getUserInvitations('pending'),
+          ...userGroups.slice(0, 3).map(group => 
+            crewConnectService.getCrewMessages(group.id, 1)
+          )
+        ]);
+
+        // Handle invitations result
+        if (invitationsResult.status === 'fulfilled') {
+          const pendingCount = invitationsResult.value.length;
           setPendingInvitations(pendingCount);
           console.log('Pending invitations count:', pendingCount);
-        } catch (error) {
-          console.warn('Failed to fetch invitations:', error);
+        } else {
+          console.warn('Failed to fetch invitations:', invitationsResult.reason);
           setPendingInvitations(0);
         }
 
-        // Fetch recent messages across all groups
+        // Handle message results
         const recentMessages = [];
-        for (const group of userGroups.slice(0, 5)) { // Limit to 5 groups to avoid too many requests
-          try {
-            const groupMessages = await crewConnectService.getCrewMessages(group.id, 1); // Get just the latest message
-            if (groupMessages && groupMessages.length > 0) {
-              const latestMessage = groupMessages[0];
-              recentMessages.push({
-                groupId: group.id,
-                groupName: group.name,
-                lastMessage: {
-                  sender: {
-                    displayName: latestMessage.senderName || 'Unknown'
-                  },
-                  content: latestMessage.message || 'No messages yet'
+        messageResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value.length > 0) {
+            const group = userGroups[index];
+            const latestMessage = result.value[0];
+            recentMessages.push({
+              groupId: group.id,
+              groupName: group.name,
+              lastMessage: {
+                sender: {
+                  displayName: latestMessage.sender?.displayName || 'Unknown'
                 },
-                onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
-                timestamp: latestMessage.sentAt?.toDate ? latestMessage.sentAt.toDate() : new Date(latestMessage.sentAt)
-              });
-            } else {
-              // Group has no messages
-              recentMessages.push({
-                groupId: group.id,
-                groupName: group.name,
-                lastMessage: {
-                  sender: {
-                    displayName: ''
-                  },
-                  content: 'No messages yet'
-                },
-                onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
-                timestamp: new Date(0) // Very old date so it appears last
-              });
-            }
-          } catch (error) {
-            console.warn(`Failed to fetch messages for group ${group.id}:`, error);
+                content: latestMessage.content || 'No messages yet'
+              },
+              onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
+              timestamp: latestMessage.sentAt?.toDate ? latestMessage.sentAt.toDate() : new Date(latestMessage.sentAt)
+            });
+          } else if (index < userGroups.length) {
+            // Group has no messages or failed to load
+            const group = userGroups[index];
+            recentMessages.push({
+              groupId: group.id,
+              groupName: group.name,
+              lastMessage: {
+                sender: { displayName: '' },
+                content: 'No messages yet'
+              },
+              onlineCount: group.members?.filter(m => m.isOnline)?.length || 0,
+              timestamp: new Date(0) // Very old date so it appears last
+            });
           }
-        }
-        
+        });
+
         // Sort by timestamp (most recent first)
         const sortedMessages = recentMessages
           .sort((a, b) => b.timestamp - a.timestamp)
@@ -188,10 +190,7 @@ const Dashboard = () => {
       }
     };
 
-    // Add a small delay to prevent rapid re-renders
-    const timeoutId = setTimeout(fetchDashboardData, 100);
-    return () => clearTimeout(timeoutId);
-    
+    fetchDashboardData();
   }, [currentUser?.uid]);
 
   // Real-time invitation listener
@@ -200,15 +199,24 @@ const Dashboard = () => {
 
     console.log('Setting up invitation listener for user:', currentUser.uid);
     
+    // Simple query without orderBy to avoid composite index requirement
     const invitationsQuery = query(
       collection(db, 'invitations'),
-      where('recipientId', '==', currentUser.uid),
-      where('status', '==', 'pending')
+      where('invitedUserId', '==', currentUser.uid)
     );
 
     const unsubscribe = onSnapshot(invitationsQuery, (snapshot) => {
-      const pendingCount = snapshot.size;
-      console.log('Real-time invitation update: pending count =', pendingCount);
+      console.log('🔔 DEBUG: Real-time listener triggered, total docs:', snapshot.size);
+      
+      // Filter for pending status in memory to avoid composite index
+      const pendingInvitations = snapshot.docs.filter(doc => {
+        const data = doc.data();
+        console.log('🔔 DEBUG: Document:', { id: doc.id, status: data.status, invitedUserId: data.invitedUserId });
+        return data.status === 'pending';
+      });
+      
+      const pendingCount = pendingInvitations.length;
+      console.log('🔔 DEBUG: Pending invitations after filtering:', pendingCount);
       setPendingInvitations(pendingCount);
     }, (error) => {
       console.warn('Error in invitation listener:', error);
@@ -233,7 +241,7 @@ const Dashboard = () => {
     }
   };
 
-  const quickActions = [
+  const quickActions = useMemo(() => [
     {
       title: 'Create Group',
       description: 'Start a new group chat',
@@ -270,7 +278,7 @@ const Dashboard = () => {
       color: 'from-orange-500 to-orange-600',
       onClick: () => navigate('/settings')
     }
-  ];
+  ], [pendingInvitations, navigate]);
 
   const getGroupsTrend = () => {
     const newGroups = stats.totalGroups - statsHistory.groupsLastWeek;
