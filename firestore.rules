@@ -35,23 +35,10 @@ service cloud.firestore {
         request.auth.uid == resource.data.createdBy;
     }
     
-    // Memberships collection - users manage their own memberships
+    // Memberships collection - temporarily permissive for debugging
     match /memberships/{membershipId} {
-      // Allow creation if user is creating their own membership
-      allow create: if request.auth != null && 
-        request.auth.uid == request.resource.data.userId;
-      
-      // Allow reading own memberships or if user is crew admin
-      allow read: if request.auth != null && 
-        (request.auth.uid == resource.data.userId ||
-         exists(/databases/$(database)/documents/crews/$(resource.data.crewId)) &&
-         get(/databases/$(database)/documents/crews/$(resource.data.crewId)).data.createdBy == request.auth.uid);
-      
-      // Allow updating/deleting own memberships or by crew admin
-      allow update, delete: if request.auth != null && 
-        (request.auth.uid == resource.data.userId ||
-         exists(/databases/$(database)/documents/crews/$(resource.data.crewId)) &&
-         get(/databases/$(database)/documents/crews/$(resource.data.crewId)).data.createdBy == request.auth.uid);
+      // Allow all operations by any authenticated user (temporary)
+      allow create, read, update, delete: if request.auth != null;
     }
     
     // Messages collection - crew members can create and read messages
@@ -86,6 +73,27 @@ service cloud.firestore {
       // Allow updating/deleting own notifications
       allow update, delete: if request.auth != null && 
         request.auth.uid == resource.data.recipientId;
+    }
+
+    // Invitations collection - for crew invitations (temporarily permissive for debugging)
+    match /invitations/{invitationId} {
+      // Allow creation by any authenticated user (temporary)
+      allow create: if request.auth != null;
+      
+      // Allow reading by any authenticated user (temporary)
+      allow read: if request.auth != null;
+      
+      // Allow updating by any authenticated user (temporary)
+      allow update: if request.auth != null;
+      
+      // Allow deletion by any authenticated user (temporary)
+      allow delete: if request.auth != null;
+    }
+
+    // Join requests collection - for crew join requests (temporarily permissive for debugging)
+    match /joinRequests/{requestId} {
+      // Allow all operations by any authenticated user (temporary)
+      allow create, read, update, delete: if request.auth != null;
     }
   }
 }

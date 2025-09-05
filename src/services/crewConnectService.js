@@ -948,7 +948,10 @@ class CrewConnectService {
         createdAt: serverTimestamp()
       };
 
+      console.log('📩 DEBUG: Creating invitation with data:', invitationData);
       const invitationRef = await addDoc(collection(db, 'invitations'), invitationData);
+      console.log('📩 DEBUG: Invitation created successfully with ID:', invitationRef.id);
+      
       return { id: invitationRef.id, ...invitationData };
     } catch (error) {
       console.error('Error sending invitation:', error);

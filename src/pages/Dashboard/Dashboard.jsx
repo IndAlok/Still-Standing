@@ -3,6 +3,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
 import NotificationDropdown from '../../components/NotificationDropdown/NotificationDropdown';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import {
   Users,
   MessageCircle,
@@ -25,6 +27,7 @@ const Dashboard = () => {
   const [userData, setUserData] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
   const [recentMessages, setRecentMessages] = useState([]);
+  const [pendingInvitations, setPendingInvitations] = useState(0);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [stats, setStats] = useState({
     totalGroups: 0,
@@ -69,6 +72,17 @@ const Dashboard = () => {
         const userGroups = await crewConnectService.getUserCrews();
         setUserGroups(userGroups);
         console.log('User groups fetched:', userGroups);
+
+        // Fetch pending invitations count
+        try {
+          const invitations = await crewConnectService.getUserInvitations(currentUser.uid);
+          const pendingCount = invitations.filter(inv => inv.status === 'pending').length;
+          setPendingInvitations(pendingCount);
+          console.log('Pending invitations count:', pendingCount);
+        } catch (error) {
+          console.warn('Failed to fetch invitations:', error);
+          setPendingInvitations(0);
+        }
 
         // Fetch recent messages across all groups
         const recentMessages = [];
@@ -180,6 +194,32 @@ const Dashboard = () => {
     
   }, [currentUser?.uid]);
 
+  // Real-time invitation listener
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    console.log('Setting up invitation listener for user:', currentUser.uid);
+    
+    const invitationsQuery = query(
+      collection(db, 'invitations'),
+      where('recipientId', '==', currentUser.uid),
+      where('status', '==', 'pending')
+    );
+
+    const unsubscribe = onSnapshot(invitationsQuery, (snapshot) => {
+      const pendingCount = snapshot.size;
+      console.log('Real-time invitation update: pending count =', pendingCount);
+      setPendingInvitations(pendingCount);
+    }, (error) => {
+      console.warn('Error in invitation listener:', error);
+    });
+
+    return () => {
+      console.log('Cleaning up invitation listener');
+      unsubscribe();
+    };
+  }, [currentUser?.uid]);
+
   const handleLogout = async () => {
     try {
       console.log('Logging out...');
@@ -210,10 +250,11 @@ const Dashboard = () => {
     },
     {
       title: 'Invitations',
-      description: 'Manage group invitations',
+      description: `Manage group invitations${pendingInvitations > 0 ? ` (${pendingInvitations} pending)` : ''}`,
       icon: User,
       color: 'from-orange-500 to-orange-600',
-      onClick: () => navigate('/invitations')
+      onClick: () => navigate('/invitations'),
+      badge: pendingInvitations > 0 ? pendingInvitations : null
     },
     {
       title: 'Start Chat',
@@ -384,8 +425,13 @@ const Dashboard = () => {
               <button
                 key={index}
                 onClick={action.onClick}
-                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6 text-left hover:bg-white/10 transition-all duration-200 hover:scale-[1.02] group"
+                className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-6 text-left hover:bg-white/10 transition-all duration-200 hover:scale-[1.02] group relative"
               >
+                {action.badge && (
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+                    {action.badge > 99 ? '99+' : action.badge}
+                  </div>
+                )}
                 <div className={`w-12 h-12 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-200`}>
                   <action.icon className="w-6 h-6 text-white" />
                 </div>
