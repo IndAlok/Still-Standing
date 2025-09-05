@@ -7,6 +7,7 @@
 # 2. Imports
 # ===============================
 import re
+import os
 import json
 import pandas as pd
 from datasets import load_dataset
@@ -21,7 +22,7 @@ from tqdm import tqdm
 # 3. Configure Gemini API
 # ===============================
 genai.configure(api_key="YOUR_GEMINI_API_KEY")  # Replace with your key
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-2.5-flash")
 
 # ===============================
 # 4. Resume Schema
@@ -185,9 +186,15 @@ def parse_hf_dataset_gemini(num_resumes: int = 10, max_workers: int = 5):
                 parsed_resumes.append(parsed)
 
     df = pd.DataFrame(parsed_resumes)
-    df.to_csv("parsed_resumes.csv", index=False)
-    print(f"✅ Parsed {len(df)} resumes and saved to parsed_resumes.csv")
+    os.makedirs("dataset", exist_ok=True)
+
+    # Save CSV inside dataset folder, overwrite every parse
+    csv_path = os.path.join("dataset", "parsed_resumes.csv")
+    df.to_csv(csv_path, index=False)
+    print(f"✅ Parsed {len(df)} resumes and saved to {csv_path}")
     return df
+
+
 
 # ===============================
 # 9. Run Parsing on HuggingFace Dataset
