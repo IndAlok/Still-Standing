@@ -32,6 +32,7 @@ const Chat = () => {
   const navigate = useNavigate();
   const { sendNewMessage } = useNotifications();
   const messagesEndRef = useRef(null);
+  const cleanup = useRef(null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [groupInfo, setGroupInfo] = useState(null);
@@ -116,17 +117,58 @@ const Chat = () => {
         const members = await crewConnectService.getCrewMembers(groupId);
         setGroupMembers(members);
 
-        // Get messages
+        // Get initial messages and setup real-time listener
         const groupMessages = await crewConnectService.getCrewMessages(groupId);
-        console.log('📨 DEBUG: Fetched messages:', groupMessages);
+        console.log('📨 DEBUG: Fetched initial messages:', groupMessages);
         setMessages(groupMessages || []);
 
-        // Join socket room for real-time updates
-        if (groupId) {
-          socketService.joinCrew(groupId);
+        // Setup Firestore real-time listener for messages
+        const unsubscribeMessages = crewConnectService.subscribeToCrewMessages(groupId, (newMessages) => {
+          console.log('📨 DEBUG: Real-time messages update:', newMessages);
+          setMessages(newMessages || []);
+        });
+
+        // Try to connect to Socket.IO for additional real-time features
+        try {
+          socketService.connect();
+          if (groupId) {
+            socketService.joinCrew(groupId);
+          }
+          
+          // Setup socket message listener as backup
+          const handleSocketMessage = (messageData) => {
+            console.log('📨 DEBUG: Socket message received:', messageData);
+            if (messageData.crewId === groupId && messageData.senderId !== currentUser?.uid) {
+              setMessages(prevMessages => {
+                // Avoid duplicates by checking if message already exists
+                const exists = prevMessages.some(msg => 
+                  msg.id === messageData.id || 
+                  (msg.message === messageData.message && msg.sentAt === messageData.sentAt && msg.senderId === messageData.senderId)
+                );
+                if (!exists) {
+                  return [...prevMessages, messageData];
+                }
+                return prevMessages;
+              });
+            }
+          };
+
+          socketService.onNewMessage(handleSocketMessage);
+        } catch (socketError) {
+          console.log('Socket.IO connection failed, using Firestore only:', socketError);
         }
 
         setLoading(false);
+        
+        // Store cleanup function
+        cleanup.current = () => {
+          unsubscribeMessages();
+          if (groupId) {
+            socketService.leaveCrew(groupId);
+          }
+          socketService.offAllListeners();
+        };
+
       } catch (error) {
         console.error('Error initializing chat:', error);
         setError(error.message || 'Failed to load chat');
@@ -136,25 +178,11 @@ const Chat = () => {
 
     initializeChat();
 
-    // Setup real-time message listener
-    const handleNewMessage = (messageData) => {
-      // Only add message if it's for the current group and not from current user
-      if (messageData.crewId === groupId && messageData.senderId !== currentUser?.uid) {
-        setMessages(prevMessages => [...prevMessages, messageData]);
-      }
-    };
-
-    if (groupId && currentUser?.uid) {
-      socketService.onNewMessage(handleNewMessage);
-    }
-
     // Cleanup
     return () => {
-      if (groupId) {
-        socketService.leaveCrew(groupId);
+      if (cleanup.current) {
+        cleanup.current();
       }
-      // Clean up socket listeners
-      socketService.offAllListeners();
     };
   }, [groupId, currentUser?.uid]);
 
@@ -174,40 +202,40 @@ const Chat = () => {
       setSending(true);
       setError('');
       
-      // Create message data
-      const messageData = {
-        crewId: groupId,
-        message: message.trim(),
-        senderId: currentUser?.uid,
-        sentAt: new Date().toISOString(),
-        sender: {
-          displayName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
-          username: currentUser?.email?.split('@')[0] || 'user'
-        }
-      };
-
-      // Optimistically add message to local state for instant UI update
-      setMessages(prevMessages => [...prevMessages, messageData]);
+      const messageText = message.trim();
+      setMessage(''); // Clear input immediately for better UX
       
-      // Send via Socket.IO for real-time delivery to others
-      socketService.sendMessage(messageData);
+      // Save to Firestore for persistence (real-time listener will update UI)
+      await crewConnectService.sendMessage(groupId, messageText);
       
-      // Also save to Firestore for persistence
-      await crewConnectService.sendMessage(groupId, message.trim());
+      // Send via Socket.IO for additional real-time delivery
+      try {
+        const messageData = {
+          crewId: groupId,
+          message: messageText,
+          senderId: currentUser?.uid,
+          sentAt: new Date().toISOString(),
+          sender: {
+            displayName: currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User',
+            username: currentUser?.email?.split('@')[0] || 'user'
+          }
+        };
+        socketService.sendMessage(messageData);
+      } catch (socketError) {
+        console.log('Socket send failed, relying on Firestore:', socketError);
+      }
       
       // Send notification to other group members
       try {
-        await sendNewMessage(groupId, message.trim(), currentUser?.uid);
+        await sendNewMessage(groupId, messageText, currentUser?.uid);
       } catch (notificationError) {
-        // Don't fail the message send if notification fails
         console.error('Failed to send message notifications:', notificationError);
       }
-      
-      setMessage('');
       
     } catch (error) {
       console.error('Error sending message:', error);
       setError('Failed to send message. Please try again.');
+      setMessage(message.trim()); // Restore message on error
     } finally {
       setSending(false);
     }

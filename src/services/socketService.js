@@ -12,27 +12,33 @@ class SocketService {
       // For local development - adjust URL as needed
       this.socket = io('http://localhost:5000', {
         autoConnect: false,
+        transports: ['websocket', 'polling'],
+        timeout: 5000,
         auth: {
           token: auth.currentUser?.accessToken
         }
       });
 
       this.socket.on('connect', () => {
-        console.log('Connected to server');
+        console.log('✅ Connected to Socket.IO server');
       });
 
-      this.socket.on('disconnect', () => {
-        console.log('Disconnected from server');
+      this.socket.on('disconnect', (reason) => {
+        console.log('❌ Disconnected from Socket.IO server:', reason);
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('Connection error:', error);
-        // Fallback to Firestore real-time listeners if socket fails
+        console.error('❌ Socket.IO connection error:', error);
+        // Silently fail - Firestore real-time listeners will handle messaging
       });
     }
 
     if (auth.currentUser && !this.socket.connected) {
-      this.socket.connect();
+      try {
+        this.socket.connect();
+      } catch (error) {
+        console.log('Socket.IO connection failed, using Firestore fallback:', error);
+      }
     }
   }
 
@@ -47,6 +53,9 @@ class SocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit('join_crew', crewId);
       this.currentRooms.add(crewId);
+      console.log(`📡 Joined crew room: ${crewId}`);
+    } else {
+      console.log('⚠️ Socket not connected, cannot join crew room');
     }
   }
 
@@ -54,12 +63,16 @@ class SocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit('leave_crew', crewId);
       this.currentRooms.delete(crewId);
+      console.log(`📡 Left crew room: ${crewId}`);
     }
   }
 
   sendMessage(messageData) {
     if (this.socket && this.socket.connected) {
       this.socket.emit('send_message', messageData);
+      console.log('📡 Message sent via Socket.IO:', messageData);
+    } else {
+      console.log('⚠️ Socket not connected, message will be sent via Firestore only');
     }
   }
 
