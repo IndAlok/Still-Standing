@@ -11,7 +11,76 @@ import {
   Clock,
   UserPlus,
   UserCheck,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
 } from "lucide-react";
+
+const Toast = ({ message, type, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 4000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  const getToastStyles = () => {
+    switch (type) {
+      case "success":
+        return "bg-green-600/90 border-green-500/50 text-white";
+      case "error":
+        return "bg-red-600/90 border-red-500/50 text-white";
+      case "info":
+        return "bg-blue-600/90 border-blue-500/50 text-white";
+      default:
+        return "bg-slate-600/90 border-slate-500/50 text-white";
+    }
+  };
+
+  const getIcon = () => {
+    switch (type) {
+      case "success":
+        return <CheckCircle className="w-5 h-5 text-green-300" />;
+      case "error":
+        return <XCircle className="w-5 h-5 text-red-300" />;
+      case "info":
+        return <AlertCircle className="w-5 h-5 text-blue-300" />;
+      default:
+        return <AlertCircle className="w-5 h-5 text-slate-300" />;
+    }
+  };
+
+  return (
+    <div
+      className={`fixed top-6 right-6 z-50 flex items-center space-x-3 px-6 py-4 rounded-xl border backdrop-blur-xl shadow-2xl transform transition-all duration-300 ease-out ${getToastStyles()}`}
+      style={{
+        animation: "slideInFromTop 0.3s ease-out",
+      }}
+    >
+      {getIcon()}
+      <span className="font-medium text-sm">{message}</span>
+      <button
+        onClick={onClose}
+        className="ml-2 hover:opacity-70 transition-opacity"
+      >
+        <X className="w-4 h-4" />
+      </button>
+      <style jsx>{`
+        @keyframes slideInFromTop {
+          from {
+            opacity: 0;
+            transform: translateY(-20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const InvitationManager = () => {
   const { currentUser } = useAuth();
@@ -21,6 +90,15 @@ const InvitationManager = () => {
   const [loading, setLoading] = useState(true);
   const [processingInvitation, setProcessingInvitation] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = "info") => {
+    setToast({ message, type, id: Date.now() });
+  };
+
+  const closeToast = () => {
+    setToast(null);
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -93,14 +171,20 @@ const InvitationManager = () => {
 
       // Show success message
       if (action === "accepted") {
-        alert("Successfully joined the group!");
+        showToast(
+          "🎉 Successfully joined the group! Welcome aboard!",
+          "success"
+        );
         fetchUserGroups(); // Refresh groups
       } else {
-        alert("Invitation declined");
+        showToast("Invitation declined successfully", "info");
       }
     } catch (error) {
       console.error("Error handling invitation:", error);
-      alert(error.message);
+      showToast(
+        error.message || "Failed to process invitation. Please try again.",
+        "error"
+      );
     } finally {
       setProcessingInvitation(null);
     }
@@ -115,13 +199,19 @@ const InvitationManager = () => {
 
       // Show success message
       if (action === "approved") {
-        alert("Join request approved!");
+        showToast(
+          "✅ Join request approved! New member added to the group.",
+          "success"
+        );
       } else {
-        alert("Join request rejected");
+        showToast("Join request rejected", "info");
       }
     } catch (error) {
       console.error("Error handling join request:", error);
-      alert(error.message);
+      showToast(
+        error.message || "Failed to process join request. Please try again.",
+        "error"
+      );
     }
   };
 
@@ -155,6 +245,15 @@ const InvitationManager = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
+      {toast && (
+        <Toast
+          key={toast.id}
+          message={toast.message}
+          type={toast.type}
+          onClose={closeToast}
+        />
+      )}
+
       <div className="max-w-4xl mx-auto">
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl border border-slate-700/50 shadow-2xl p-6">
           <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
