@@ -105,6 +105,22 @@ npm start
 ```
 
 The app will open at `http://localhost:3000`
+<<<<<<< HEAD
+=======
+### AI-MATCHMAKER
+```bash
+cd Backend
+python app.py
+```
+**curl request
+curl -X POST http://127.0.0.1:5000/api/ai-matchmaker \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@C:/Users/HP/Desktop/SS/Still-Standing/Backend/dataset/participants.csv" \
+  -F "participant_id=P_001" \
+  -F "required_domains=[\"frontend\",\"backend\"]" \
+  -F "required_skills=[\"Python\",\"React\"]" \
+  -F "team_size=4"
+>>>>>>> a5a4a980a54c67967adb708c716561c776c1d8eb
 
 ## 🐳 Docker Setup
 
