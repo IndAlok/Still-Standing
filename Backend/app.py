@@ -14,6 +14,9 @@ from werkzeug.utils import secure_filename
 import tempfile
 import logging
 
+# Import AI matchmaking blueprint
+from ai_api import ai_bp
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -372,7 +375,7 @@ def create_group():
 
 @app.route('/api/groups/<group_id>/join', methods=['POST'])
 @jwt_required()
-def join_group():
+def join_group(group_id):
     try:
         user_id = get_jwt_identity()
         group = Group.query.get(group_id)
@@ -407,7 +410,7 @@ def join_group():
 # Message Routes
 @app.route('/api/groups/<group_id>/messages', methods=['GET'])
 @jwt_required()
-def get_messages():
+def get_messages(group_id):
     try:
         user_id = get_jwt_identity()
         
@@ -444,7 +447,7 @@ def get_messages():
 
 @app.route('/api/groups/<group_id>/messages', methods=['POST'])
 @jwt_required()
-def send_message():
+def send_message(group_id):
     try:
         user_id = get_jwt_identity()
         
@@ -638,4 +641,6 @@ def handle_send_message(data):
         print(f'Message sent to crew {crew_id}')
 
 if __name__ == '__main__':
+    # Register AI matchmaking blueprint
+    app.register_blueprint(ai_bp)
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
