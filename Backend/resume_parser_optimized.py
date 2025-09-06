@@ -21,6 +21,13 @@ from werkzeug.utils import secure_filename
 import google.generativeai as genai
 from pydantic import BaseModel, ValidationError
 
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

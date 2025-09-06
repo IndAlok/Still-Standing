@@ -10,6 +10,21 @@ from dotenv import load_dotenv
 import redis
 import json
 import uuid
+from werkzeug.utils import secure_filename
+import tempfile
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import resume parser
+try:
+    from resume_parser_optimized import ResumeParser, ExtractedResumeData
+    RESUME_PARSER_AVAILABLE = True
+except ImportError:
+    print("Resume parser not available - resume parsing disabled")
+    RESUME_PARSER_AVAILABLE = False
 
 load_dotenv()
 
@@ -483,6 +498,93 @@ def health_check():
         'timestamp': datetime.utcnow().isoformat(),
         'version': '1.0.0'
     }), 200
+
+# Resume parsing endpoint
+@app.route('/api/parse-resume', methods=['POST'])
+def parse_resume():
+    try:
+        if not RESUME_PARSER_AVAILABLE:
+            return jsonify({
+                'error': 'Resume parser not available',
+                'message': 'Resume parsing service is not configured'
+            }), 503
+        
+        if 'resume' not in request.files:
+            return jsonify({'error': 'No resume file provided'}), 400
+        
+        file = request.files['resume']
+        if not file or not file.filename:
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'pdf', 'doc', 'docx', 'txt'}
+        filename = file.filename
+        file_extension = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+        
+        if file_extension not in allowed_extensions:
+            return jsonify({
+                'error': 'Invalid file type',
+                'message': 'Supported formats: PDF, DOC, DOCX, TXT'
+            }), 400
+        
+        # Save file temporarily
+        secure_name = secure_filename(filename)
+        temp_path = os.path.join(tempfile.gettempdir(), secure_name)
+        file.save(temp_path)
+        
+        try:
+            # Import the parsing functions
+            from resume_parser_optimized import (
+                parse_resume_text,
+                extract_text_from_pdf,
+                extract_text_from_docx,
+                extract_text_from_doc
+            )
+            
+            # Extract text based on file type
+            if file_extension == 'pdf':
+                text = extract_text_from_pdf(temp_path)
+            elif file_extension == 'docx':
+                text = extract_text_from_docx(temp_path)
+            elif file_extension == 'doc':
+                text = extract_text_from_doc(temp_path)
+            elif file_extension == 'txt':
+                with open(temp_path, 'r', encoding='utf-8') as f:
+                    text = f.read()
+            else:
+                raise ValueError("Unsupported file type")
+            
+            if not text.strip():
+                os.unlink(temp_path)
+                return jsonify({
+                    'error': 'Could not extract text from file',
+                    'message': 'Please ensure the file is not corrupted and contains readable text.'
+                }), 400
+            
+            # Parse the resume text
+            parsed_data = parse_resume_text(text, filename)
+            
+            # Clean up temp file
+            os.unlink(temp_path)
+            
+            return jsonify({
+                'success': True,
+                'data': parsed_data.model_dump() if hasattr(parsed_data, 'model_dump') else parsed_data,
+                'message': 'Resume parsed successfully'
+            }), 200
+            
+        except Exception as parse_error:
+            # Clean up temp file on error
+            if os.path.exists(temp_path):
+                os.unlink(temp_path)
+            raise parse_error
+            
+    except Exception as e:
+        logger.error(f"Resume parsing error: {str(e)}")
+        return jsonify({
+            'error': 'Resume parsing failed',
+            'message': str(e)
+        }), 500
 
 # Error handlers
 @app.errorhandler(404)
