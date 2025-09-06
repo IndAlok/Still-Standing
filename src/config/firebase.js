@@ -1,7 +1,7 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getAuth, GoogleAuthProvider, connectAuthEmulator } from 'firebase/auth';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { getStorage, connectStorageEmulator } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -20,6 +20,30 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// For development, try to use emulator if available
+if (process.env.NODE_ENV === 'development') {
+  // Check if we're already connected to avoid re-connection errors
+  if (!globalThis._firebaseEmulatorConnected) {
+    try {
+      console.log('🔧 Attempting to connect to Firebase emulators...');
+      
+      // Only connect if emulator is running (non-blocking check)
+      fetch('http://localhost:9199/storage/v1/b/default/o')
+        .then(() => {
+          connectStorageEmulator(storage, 'localhost', 9199);
+          console.log('✅ Connected to Storage emulator');
+        })
+        .catch(() => {
+          console.log('📡 Storage emulator not available, using production');
+        });
+        
+      globalThis._firebaseEmulatorConnected = true;
+    } catch (error) {
+      console.warn('⚠️ Emulator connection failed:', error.message);
+    }
+  }
+}
 
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   User,
   Mail,
@@ -21,8 +21,19 @@ import {
   X,
   Check,
   AlertCircle,
+  LogOut,
+  Camera,
+  Settings,
+  Briefcase,
+  GraduationCap,
+  Award,
+  Link,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
+import storageService from "../../services/storageService";
+import cacheService from "../../services/cacheService";
+import ProfilePictureUpload from "../../components/ProfilePictureUpload";
 
 // MODAL COMPONENTS (Moved outside the main component)
 // ====================================================================================
@@ -487,7 +498,20 @@ const EditProfileModal = ({
 // ====================================================================================
 
 const UserProfilePage = () => {
-  const { userProfile, updateUserProfile } = useAuth();
+  const { currentUser, userProfile, updateUserProfile, refreshUserProfile, logout } = useAuth();
+  const navigate = useNavigate();
+
+  // Early return if user profile is not loaded yet
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading your profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Local state to track the current profile data
   const [currentProfile, setCurrentProfile] = useState(userProfile);
@@ -497,6 +521,8 @@ const UserProfilePage = () => {
   const [uploadedResume, setUploadedResume] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [profilePictureURL, setProfilePictureURL] = useState(null);
+  const [isProfilePictureLoading, setIsProfilePictureLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   // State for the edit form
@@ -554,8 +580,151 @@ const UserProfilePage = () => {
   useEffect(() => {
     if (userProfile) {
       setCurrentProfile(userProfile);
+      
+      // Update profile picture URL if available in userProfile
+      if (userProfile.profilePicture?.url && userProfile.profilePicture.url !== profilePictureURL) {
+        setProfilePictureURL(userProfile.profilePicture.url);
+      } else if (userProfile.photoURL && userProfile.photoURL !== profilePictureURL) {
+        setProfilePictureURL(userProfile.photoURL);
+      }
+      
+      // Load profile picture and resume data
+      loadProfileAssets();
+    }
+  }, [userProfile, profilePictureURL]);
+
+  // Load profile picture and resume data
+  const loadProfileAssets = useCallback(async () => {
+    if (!currentUser?.uid || !userProfile?.uid) return;
+    
+    try {
+      setIsProfilePictureLoading(true);
+      
+      // Load profile picture
+      const profilePicture = await storageService.getProfilePictureURL(userProfile.uid);
+      if (profilePicture) {
+        setProfilePictureURL(profilePicture);
+      } else if (userProfile.photoURL) {
+        // Sync Google profile picture if available
+        await handleGoogleProfileSync();
+      }
+      
+      // Load resume data
+      const resumeData = await storageService.getUserResume(userProfile.uid);
+      if (resumeData) {
+        setUploadedResume({
+          name: resumeData.originalName || 'Resume',
+          size: resumeData.size || 'Unknown',
+          uploadDate: resumeData.uploadDate ? new Date(resumeData.uploadDate).toLocaleDateString() : new Date().toLocaleDateString(),
+          type: resumeData.type || 'PDF',
+          url: resumeData.downloadURL,
+          status: resumeData.processingStatus || 'completed'
+        });
+      }
+    } catch (error) {
+      console.error('Error loading profile assets:', error);
+    } finally {
+      setIsProfilePictureLoading(false);
     }
   }, [userProfile]);
+
+  // Handle Google profile picture sync
+  const handleGoogleProfileSync = useCallback(async () => {
+    if (!currentUser?.photoURL || !currentUser?.uid) {
+      console.error('No Google photo or user authentication available');
+      alert('No Google profile picture available to sync');
+      return;
+    }
+    
+    try {
+      setIsProfilePictureLoading(true);
+      console.log('Syncing Google profile picture...');
+      
+      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid);
+      console.log('Sync result:', syncResult);
+      
+      if (syncResult.success && syncResult.url) {
+        setProfilePictureURL(syncResult.url);
+        await updateUserProfile({ profilePicture: syncResult.url });
+        console.log('Google profile picture synced successfully:', syncResult.url);
+        
+        // Show success message
+        alert('Google profile picture synced successfully!');
+      } else {
+        throw new Error('Sync failed: No URL returned');
+      }
+    } catch (error) {
+      console.error('Error syncing Google profile picture:', error);
+      alert(`Failed to sync Google profile picture: ${error.message}`);
+    } finally {
+      setIsProfilePictureLoading(false);
+    }
+  }, [currentUser, userProfile, updateUserProfile]);
+
+  // Handle profile picture upload
+  const handleProfilePictureUpload = useCallback(async (file) => {
+    if (!currentUser?.uid) {
+      console.error('No user authentication available for upload');
+      return;
+    }
+    
+    try {
+      setIsProfilePictureLoading(true);
+      console.log('Uploading profile picture...', file);
+      
+      const uploadResult = await storageService.uploadProfilePicture(file, userProfile.uid);
+      console.log('Upload result:', uploadResult);
+      
+      if (uploadResult.success && uploadResult.url) {
+        // Update local state immediately
+        setProfilePictureURL(uploadResult.url);
+        
+        // Update user profile in Firestore
+        await updateUserProfile({ 
+          profilePicture: { url: uploadResult.url, updatedAt: new Date() },
+          profilePictureUrl: uploadResult.url, // For crewConnectService compatibility
+          photoURL: uploadResult.url // Also update photoURL for compatibility 
+        });
+        
+        // Force refresh user profile to propagate changes across the app
+        await refreshUserProfile();
+        
+        // Also trigger a manual update of profile picture in cache
+        const cacheKey = `profile-pic-${userProfile.uid}`;
+        cacheService.set(cacheKey, uploadResult.url, 300);
+        
+        console.log('Profile picture uploaded successfully:', uploadResult.url);
+        
+        // Show success message
+        alert('Profile picture updated successfully!');
+        
+        // Force re-render by updating current profile
+        setCurrentProfile(prev => ({
+          ...prev,
+          profilePicture: { url: uploadResult.url, updatedAt: new Date() },
+          photoURL: uploadResult.url
+        }));
+      } else {
+        throw new Error('Upload failed: No URL returned');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      alert(`Failed to upload profile picture: ${error.message}`);
+    } finally {
+      setIsProfilePictureLoading(false);
+    }
+  }, [currentUser, userProfile, updateUserProfile, refreshUserProfile]);
+
+  // Handle logout
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      navigate('/login'); // Force navigation even if logout fails
+    }
+  }, [logout, navigate]);
 
   const getExperienceColor = (level) => {
     const colors = {
@@ -640,43 +809,94 @@ const UserProfilePage = () => {
     handleTeamPreferenceUpdate(domain, updatedSkills);
   };
 
-  const handleFileSelect = (event) => {
+  const handleFileSelect = useCallback(async (event) => {
     const file = event.target.files[0];
-    if (file) {
-      if (
-        file.type === "application/pdf" ||
-        file.type === "application/msword" ||
-        file.type ===
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      ) {
-        simulateFileUpload(file);
-      } else {
-        alert("Please upload a PDF or DOC file only.");
-      }
+    if (!file) return;
+
+    if (
+      file.type === "application/pdf" ||
+      file.type === "application/msword" ||
+      file.type ===
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    ) {
+      await uploadResumeFile(file);
+    } else {
+      alert("Please upload a PDF or DOC file only.");
     }
-  };
+  }, []);
 
-  const simulateFileUpload = (file) => {
-    setIsUploading(true);
-    setUploadProgress(0);
+  const uploadResumeFile = useCallback(async (file) => {
+    if (!currentUser?.uid) {
+      console.error('No user authentication available for upload');
+      return;
+    }
+    
+    try {
+      setIsUploading(true);
+      setUploadProgress(0);
+      console.log('Uploading resume...', file);
 
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsUploading(false);
-          setUploadedResume({
-            name: file.name,
-            size: (file.size / 1024 / 1024).toFixed(2) + " MB",
-            uploadDate: new Date().toLocaleDateString(),
-            type: file.type.includes("pdf") ? "PDF" : "DOC",
-          });
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
-  };
+      // Upload to Firebase Storage with comprehensive AI parsing
+      const result = await storageService.uploadResume(file, currentUser.uid);
+      console.log('Resume upload result:', result);
+
+      if (result.success && result.resumeData) {
+        const resumeData = result.resumeData;
+        const insights = resumeData.insights;
+        
+        setUploadedResume({
+          name: resumeData.fileName || file.name,
+          size: (file.size / 1024 / 1024).toFixed(2) + " MB",
+          uploadDate: new Date().toLocaleDateString(),
+          type: file.type.includes("pdf") ? "PDF" : "DOC",
+          url: null, // No direct URL for collection-based storage
+          status: resumeData.parseStatus || 'processing',
+          parsedData: resumeData.parsedData,
+          resumeId: resumeData.id,
+          parseMethod: resumeData.parseMethod,
+          insights: insights
+        });
+
+        // Update user profile with comprehensive resume data
+        await updateUserProfile({
+          resume: {
+            fileName: resumeData.fileName,
+            resumeId: resumeData.id,
+            uploadDate: resumeData.uploadedAt,
+            parseStatus: resumeData.parseStatus,
+            parseMethod: resumeData.parseMethod,
+            parsedData: resumeData.parsedData,
+            insights: insights,
+            fileSize: resumeData.fileSize,
+            fileType: resumeData.fileType,
+            storageMethod: 'comprehensive-ai-collection',
+            completenessScore: insights?.completenessScore || 0
+          }
+        });
+
+        // Show success message with insights
+        const successMessage = insights 
+          ? `Resume uploaded successfully! 
+             Parse Status: ${resumeData.parseStatus}
+             Method: ${resumeData.parseMethod}
+             Completeness: ${insights.completenessScore}%
+             Skills Found: ${insights.technicalSkillsCount}
+             Experience: ${insights.totalExperience} years`
+          : `Resume uploaded successfully! Parse status: ${resumeData.parseStatus}`;
+
+        console.log('✅ Resume uploaded and processed successfully');
+        alert(successMessage);
+      } else {
+        throw new Error('Upload failed: ' + (result.parseError || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      alert(`Failed to upload resume: ${error.message}`);
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(100);
+    }
+  }, [userProfile, updateUserProfile]);
 
   const removeResume = async () => {
     setUploadedResume(null);
@@ -783,8 +1003,41 @@ const UserProfilePage = () => {
               <div className="relative z-10">
                 <div className="flex items-center justify-between flex-wrap gap-6">
                   <div className="flex items-center gap-8">
-                    <div className="w-32 h-32 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border-2 border-white/20 shadow-2xl">
-                      <User size={48} className="text-white" />
+                    <div className="relative group">
+                      <div className="w-32 h-32 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border-2 border-white/20 shadow-2xl overflow-hidden">
+                        {profilePictureURL ? (
+                          <img
+                            src={profilePictureURL}
+                            alt="Profile"
+                            className="w-full h-full object-cover"
+                            onError={() => setProfilePictureURL(null)}
+                          />
+                        ) : (
+                          <User size={48} className="text-white" />
+                        )}
+                        {isProfilePictureLoading && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => document.getElementById('profile-picture-input').click()}
+                        className="absolute -bottom-2 -right-2 w-8 h-8 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg border-2 border-white group-hover:scale-110"
+                        title="Change profile picture"
+                      >
+                        <Camera size={16} className="text-white" />
+                      </button>
+                      <input
+                        id="profile-picture-input"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) handleProfilePictureUpload(file);
+                        }}
+                        className="hidden"
+                      />
                     </div>
                     <div>
                       <h1 className="text-5xl font-bold mb-3 bg-gradient-to-r from-white to-cyan-200 bg-clip-text text-transparent">
@@ -834,6 +1087,20 @@ const UserProfilePage = () => {
                       <Edit3 size={22} />
                       Edit Profile
                     </button>
+                    <button
+                      onClick={() => navigate('/settings')}
+                      className="bg-white/10 hover:bg-white/20 text-white px-8 py-4 rounded-2xl transition-all duration-300 backdrop-blur-sm border-2 border-white/20 font-medium flex items-center gap-3 hover:scale-105 transform shadow-lg hover:shadow-xl"
+                    >
+                      <Settings size={22} />
+                      Settings
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="bg-red-500/20 hover:bg-red-500/30 text-red-200 hover:text-white px-8 py-4 rounded-2xl transition-all duration-300 backdrop-blur-sm border-2 border-red-400/20 hover:border-red-400/40 font-medium flex items-center gap-3 hover:scale-105 transform shadow-lg hover:shadow-xl"
+                    >
+                      <LogOut size={22} />
+                      Logout
+                    </button>
                   </div>
                 </div>
               </div>
@@ -878,8 +1145,15 @@ const UserProfilePage = () => {
                           <FileText className="text-blue-400" size={22} />
                         </div>
                         Resume
+                        {uploadedResume.insights?.completenessScore && (
+                          <span className="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded-full border border-green-500/30">
+                            {uploadedResume.insights.completenessScore}% Complete
+                          </span>
+                        )}
                       </h3>
-                      <div className="flex items-center gap-4 text-slate-300 bg-slate-600/30 p-4 rounded-xl backdrop-blur-sm border border-slate-500/30">
+                      
+                      {/* Basic Resume Info */}
+                      <div className="flex items-center gap-4 text-slate-300 bg-slate-600/30 p-4 rounded-xl backdrop-blur-sm border border-slate-500/30 mb-4">
                         <div className="w-10 h-10 bg-blue-500/20 rounded-xl flex items-center justify-center border border-blue-500/30">
                           <FileText className="text-blue-400" size={18} />
                         </div>
@@ -889,6 +1163,11 @@ const UserProfilePage = () => {
                           </p>
                           <p className="text-slate-400 text-sm">
                             {uploadedResume.size} • {uploadedResume.type}
+                            {uploadedResume.parseMethod && (
+                              <span className="ml-2 text-blue-400">
+                                • Parsed with {uploadedResume.parseMethod}
+                              </span>
+                            )}
                           </p>
                         </div>
                         <button
@@ -897,6 +1176,122 @@ const UserProfilePage = () => {
                         >
                           <Download size={18} />
                         </button>
+                      </div>
+
+                      {/* AI Parsing Insights */}
+                      {uploadedResume.insights && (
+                        <div className="space-y-4">
+                          <h4 className="text-lg font-medium text-white mb-3">AI Analysis Results</h4>
+                          
+                          {/* Professional Summary */}
+                          {uploadedResume.insights.fullName && (
+                            <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                              <h5 className="text-white font-medium mb-2">{uploadedResume.insights.fullName}</h5>
+                              <p className="text-slate-400 text-sm">{uploadedResume.insights.professionalTitle}</p>
+                              {uploadedResume.insights.totalExperience > 0 && (
+                                <p className="text-blue-400 text-sm mt-1">
+                                  {uploadedResume.insights.totalExperience} years experience • {uploadedResume.insights.careerLevel} level
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Skills Summary */}
+                          {uploadedResume.insights.technicalSkillsCount > 0 && (
+                            <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                              <h5 className="text-white font-medium mb-2 flex items-center gap-2">
+                                <Code size={16} className="text-green-400" />
+                                Technical Skills ({uploadedResume.insights.technicalSkillsCount})
+                              </h5>
+                              <div className="flex flex-wrap gap-2">
+                                {uploadedResume.insights.topSkills?.map((skill, index) => (
+                                  <span key={index} className="bg-green-500/20 text-green-400 px-2 py-1 rounded-full text-xs border border-green-500/30">
+                                    {skill}
+                                  </span>
+                                ))}
+                              </div>
+                              {uploadedResume.insights.skillCategories?.length > 0 && (
+                                <p className="text-slate-400 text-xs mt-2">
+                                  Categories: {uploadedResume.insights.skillCategories.join(', ')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Experience & Education Summary */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {uploadedResume.insights.currentRole && (
+                              <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                                <h5 className="text-white font-medium mb-1 flex items-center gap-2">
+                                  <Briefcase size={16} className="text-purple-400" />
+                                  Current Role
+                                </h5>
+                                <p className="text-slate-300 text-sm">{uploadedResume.insights.currentRole}</p>
+                              </div>
+                            )}
+                            
+                            {uploadedResume.insights.highestEducation && (
+                              <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                                <h5 className="text-white font-medium mb-1 flex items-center gap-2">
+                                  <GraduationCap size={16} className="text-orange-400" />
+                                  Education
+                                </h5>
+                                <p className="text-slate-300 text-sm">{uploadedResume.insights.highestEducation}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Additional Achievements */}
+                          {(uploadedResume.insights.projectCount > 0 || uploadedResume.insights.certificationCount > 0) && (
+                            <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                              <h5 className="text-white font-medium mb-2 flex items-center gap-2">
+                                <Award size={16} className="text-yellow-400" />
+                                Achievements
+                              </h5>
+                              <div className="flex gap-4 text-sm text-slate-300">
+                                {uploadedResume.insights.projectCount > 0 && (
+                                  <span>{uploadedResume.insights.projectCount} Projects</span>
+                                )}
+                                {uploadedResume.insights.certificationCount > 0 && (
+                                  <span>{uploadedResume.insights.certificationCount} Certifications</span>
+                                )}
+                                {uploadedResume.insights.awardCount > 0 && (
+                                  <span>{uploadedResume.insights.awardCount} Awards</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Contact & Links */}
+                          <div className="bg-slate-600/30 p-4 rounded-xl border border-slate-500/30">
+                            <h5 className="text-white font-medium mb-2 flex items-center gap-2">
+                              <Link size={16} className="text-cyan-400" />
+                              Professional Links
+                            </h5>
+                            <div className="flex gap-4 text-sm">
+                              {uploadedResume.insights.hasLinkedIn && (
+                                <span className="text-blue-400">✓ LinkedIn</span>
+                              )}
+                              {uploadedResume.insights.hasGitHub && (
+                                <span className="text-purple-400">✓ GitHub</span>
+                              )}
+                              {uploadedResume.insights.hasPortfolio && (
+                                <span className="text-green-400">✓ Portfolio</span>
+                              )}
+                              {!uploadedResume.insights.hasLinkedIn && !uploadedResume.insights.hasGitHub && !uploadedResume.insights.hasPortfolio && (
+                                <span className="text-slate-400">No professional links found</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Parse Status */}
+                      <div className="mt-4 pt-4 border-t border-slate-600/30">
+                        <div className="flex items-center justify-between text-xs text-slate-400">
+                          <span>Parse Status: <span className={uploadedResume.status === 'success' ? 'text-green-400' : 'text-red-400'}>{uploadedResume.status}</span></span>
+                          <span>Method: {uploadedResume.parseMethod || 'unknown'}</span>
+                        </div>
                       </div>
                     </div>
                   )}

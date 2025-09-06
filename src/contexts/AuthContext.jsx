@@ -176,6 +176,20 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Refresh user profile
+  const refreshUserProfile = async () => {
+    if (!currentUser) return;
+    
+    try {
+      const updatedProfile = await crewConnectService.getUserProfile(currentUser.uid);
+      if (updatedProfile) {
+        setUserProfile(updatedProfile);
+      }
+    } catch (error) {
+      console.warn('Failed to refresh user profile:', error);
+    }
+  };
+
   // Update password
   const updateUserPassword = async (currentPassword, newPassword) => {
     try {
@@ -261,6 +275,7 @@ export function AuthProvider({ children }) {
     resetPassword,
     loginWithGoogle,
     updateUserProfile: crewConnectService.updateUserProfile.bind(crewConnectService),
+    refreshUserProfile,
     updateUserPassword,
     getUserData,
     error,

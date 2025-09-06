@@ -4,11 +4,24 @@ service cloud.firestore {
     // Users collection - allow reading all users, writing own profile
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.firebaseUID;
+      
+      // Allow creation of user document
+      allow create: if request.auth != null && 
+        (request.auth.uid == userId || 
+         request.auth.uid == request.resource.data.firebaseUID ||
+         request.auth.uid == request.resource.data.uid);
+      
+      // Allow updates to own profile
       allow update: if request.auth != null && 
-        (request.auth.uid == userId || request.auth.uid == resource.data.firebaseUID);
+        (request.auth.uid == userId || 
+         request.auth.uid == resource.data.firebaseUID ||
+         request.auth.uid == resource.data.uid);
+         
+      // Allow deletion of own profile
       allow delete: if request.auth != null && 
-        (request.auth.uid == userId || request.auth.uid == resource.data.firebaseUID);
+        (request.auth.uid == userId || 
+         request.auth.uid == resource.data.firebaseUID ||
+         request.auth.uid == resource.data.uid);
     }
     
     // Crews collection - comprehensive access control
@@ -94,6 +107,17 @@ service cloud.firestore {
     match /joinRequests/{requestId} {
       // Allow all operations by any authenticated user (temporary)
       allow create, read, update, delete: if request.auth != null;
+    }
+
+    // Resumes collection - for storing resume data separately to avoid 1MB document size limit
+    match /resumes/{resumeId} {
+      // Allow users to read and write their own resume data
+      allow read, write: if request.auth != null && 
+        (request.auth.uid == resource.data.uploadedBy || 
+         request.auth.uid == request.resource.data.uploadedBy);
+      
+      // Allow team members to read resumes (for crew functionality)
+      allow read: if request.auth != null;
     }
   }
 }

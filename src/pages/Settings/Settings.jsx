@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import storageService from '../../services/storageService';
 import {
   ArrowLeft,
   User,
@@ -21,15 +22,21 @@ import {
   Smartphone,
   Monitor,
   Check,
+  Camera,
+  Upload,
+  RefreshCw,
 } from 'lucide-react';
 
 const Settings = () => {
-  const { currentUser, logout, updateUserPassword } = useAuth();
+  const { currentUser, logout, updateUserPassword, userProfile, updateUserProfile } = useAuth();
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState('profile');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [profilePictureURL, setProfilePictureURL] = useState(userProfile?.profilePicture || currentUser?.photoURL);
+  const [isProfilePictureLoading, setIsProfilePictureLoading] = useState(false);
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -37,7 +44,76 @@ const Settings = () => {
     confirmPassword: ''
   });
 
-  // Individual handlers to prevent focus loss
+  // Handle profile picture upload
+  const handleProfilePictureUpload = useCallback(async (file) => {
+    if (!currentUser?.uid) return;
+    
+    try {
+      setIsProfilePictureLoading(true);
+      console.log('Settings: Uploading profile picture...', file);
+      
+      const uploadResult = await storageService.uploadProfilePicture(file, currentUser.uid);
+      console.log('Settings: Upload result:', uploadResult);
+      
+      if (uploadResult.success && uploadResult.url) {
+        setProfilePictureURL(uploadResult.url);
+        await updateUserProfile({ profilePicture: uploadResult.url });
+        setMessage('Profile picture updated successfully!');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        throw new Error('Upload failed: No URL returned');
+      }
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      setMessage(`Failed to update profile picture: ${error.message}`);
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setIsProfilePictureLoading(false);
+    }
+  }, [currentUser, updateUserProfile]);
+
+  // Handle Google profile picture sync
+  const handleGoogleProfileSync = useCallback(async () => {
+    if (!currentUser?.uid || !currentUser?.photoURL) return;
+    
+    try {
+      setIsProfilePictureLoading(true);
+      console.log('Settings: Syncing Google profile picture...');
+      
+      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid);
+      console.log('Settings: Sync result:', syncResult);
+      
+      if (syncResult.success && syncResult.url) {
+        setProfilePictureURL(syncResult.url);
+        await updateUserProfile({ profilePicture: syncResult.url });
+        setMessage('Profile picture synced from Google!');
+        setTimeout(() => setMessage(''), 3000);
+      } else {
+        throw new Error('Sync failed: No URL returned');
+      }
+    } catch (error) {
+      console.error('Error syncing Google profile picture:', error);
+      setMessage(`Failed to sync Google profile picture: ${error.message}`);
+      setTimeout(() => setMessage(''), 3000);
+    } finally {
+      setIsProfilePictureLoading(false);
+    }
+  }, [currentUser, updateUserProfile]);
+
+  // Handle logout with navigation
+  const handleLogout = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      await logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      navigate('/login'); // Force navigation even if logout fails
+    } finally {
+      setIsLoading(false);
+    }
+  }, [logout, navigate]);
+
   const handleCurrentPasswordChange = useCallback((e) => {
     setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }));
   }, []);
@@ -160,14 +236,6 @@ const Settings = () => {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Failed to logout:', error);
-    }
-  };
-
   const settingsSections = [
     { id: 'profile', label: 'Profile', icon: User },
     { id: 'security', label: 'Security', icon: Lock },
@@ -180,44 +248,94 @@ const Settings = () => {
 
   const ProfileSettings = () => (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4 p-6 bg-white/5 rounded-xl border border-white/10">
-        <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
-          {currentUser.photoURL ? (
-            <img
-              src={currentUser.photoURL}
-              alt="Profile"
-              className="w-16 h-16 rounded-full object-cover"
+      <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4">Profile Picture</h3>
+        <div className="flex items-center space-x-6">
+          <div className="relative group">
+            <div className="w-24 h-24 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+              {profilePictureURL ? (
+                <img
+                  src={profilePictureURL}
+                  alt="Profile"
+                  className="w-24 h-24 rounded-full object-cover"
+                  onError={() => setProfilePictureURL(null)}
+                />
+              ) : (
+                <User className="w-10 h-10 text-white" />
+              )}
+              {isProfilePictureLoading && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => document.getElementById('profile-picture-input-settings').click()}
+              className="absolute -bottom-1 -right-1 w-8 h-8 bg-cyan-500 hover:bg-cyan-400 rounded-full flex items-center justify-center transition-all duration-200 shadow-lg group-hover:scale-110"
+              title="Change profile picture"
+              disabled={isProfilePictureLoading}
+            >
+              <Camera size={14} className="text-white" />
+            </button>
+            <input
+              id="profile-picture-input-settings"
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) handleProfilePictureUpload(file);
+              }}
+              className="hidden"
             />
-          ) : (
-            <User className="w-8 h-8 text-white" />
-          )}
-        </div>
-        <div>
-          <h3 className="text-xl font-semibold text-white">{currentUser.displayName || 'User'}</h3>
-          <p className="text-gray-400">{currentUser.email}</p>
+          </div>
+          <div className="flex-1">
+            <div className="flex gap-3 mb-3">
+              <button
+                onClick={() => document.getElementById('profile-picture-input-settings').click()}
+                className="flex items-center gap-2 px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-white rounded-lg transition-colors font-medium"
+                disabled={isProfilePictureLoading}
+              >
+                <Upload size={16} />
+                Upload New
+              </button>
+              {currentUser?.photoURL && (
+                <button
+                  onClick={handleGoogleProfileSync}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white rounded-lg transition-colors font-medium"
+                  disabled={isProfilePictureLoading}
+                >
+                  <RefreshCw size={16} />
+                  Sync Google
+                </button>
+              )}
+            </div>
+            <p className="text-gray-400 text-sm">
+              Upload a new profile picture or sync from your Google account. 
+              <br />Supported formats: JPG, PNG, GIF. Max size: 5MB.
+            </p>
+          </div>
         </div>
       </div>
       
-      <div className="bg-white/5 rounded-xl border border-white/10 p-6">
-        <h4 className="text-lg font-semibold text-white mb-4">Account Information</h4>
+      <div className="p-6 bg-white/5 rounded-xl border border-white/10">
+        <h3 className="text-lg font-semibold text-white mb-4">Account Information</h3>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Email Address</label>
-            <input
-              type="email"
-              value={currentUser.email}
-              disabled
-              className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-gray-400"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-400 mb-2">Account Created</label>
-            <input
-              type="text"
-              value={new Date(currentUser.metadata.creationTime).toLocaleDateString()}
-              disabled
-              className="w-full bg-white/5 border border-white/20 rounded-lg px-3 py-2 text-gray-400"
-            />
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+              {profilePictureURL ? (
+                <img
+                  src={profilePictureURL}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-full object-cover"
+                />
+              ) : (
+                <User className="w-8 h-8 text-white" />
+              )}
+            </div>
+            <div>
+              <h4 className="text-xl font-semibold text-white">{userProfile?.username || currentUser.displayName || 'User'}</h4>
+              <p className="text-gray-400">{currentUser.email}</p>
+            </div>
           </div>
         </div>
       </div>

@@ -2,7 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import crewConnectService from '../../services/crewConnectService';
+import storageService from '../../services/storageService';
 import NotificationDropdown from '../../components/NotificationDropdown/NotificationDropdown';
+import TeamMemberProfile from '../../components/TeamMemberProfile';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import {
@@ -19,16 +21,20 @@ import {
   TrendingUp,
   UserPlus,
   MessageSquare,
+  Eye,
 } from "lucide-react";
 
 const Dashboard = () => {
-  const { currentUser, logout, getUserData } = useAuth();
+  const { currentUser, userProfile, logout, getUserData } = useAuth();
   const navigate = useNavigate();
   const [userData, setUserData] = useState(null);
   const [userGroups, setUserGroups] = useState([]);
   const [recentMessages, setRecentMessages] = useState([]);
   const [pendingInvitations, setPendingInvitations] = useState(0);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [selectedMemberId, setSelectedMemberId] = useState(null);
+  const [showMemberProfile, setShowMemberProfile] = useState(false);
+  const [allTeamMembers, setAllTeamMembers] = useState([]);
   const [stats, setStats] = useState({
     totalGroups: 0,
     totalMessages: 0,
@@ -41,6 +47,7 @@ const Dashboard = () => {
     activityLastHour: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [currentUserProfilePicture, setCurrentUserProfilePicture] = useState(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -68,8 +75,33 @@ const Dashboard = () => {
           isOnline: true,
         };
 
+        // If we have userProfile data, prefer that
+        if (userProfile) {
+          basicUserData.displayName = userProfile.displayName || userProfile.username || basicUserData.displayName;
+          basicUserData.photoURL = userProfile.profilePicture?.url || userProfile.profilePictureUrl || userProfile.photoURL || basicUserData.photoURL;
+        }
+
         setUserData(basicUserData);
         console.log("Basic user data set:", basicUserData);
+
+        // Load current user's profile picture from storage service (non-blocking, only if no profile picture yet)
+        if (!basicUserData.photoURL) {
+          storageService.getProfilePictureURL(currentUser.uid)
+            .then(profilePicURL => {
+              if (profilePicURL) {
+                setCurrentUserProfilePicture(profilePicURL);
+                // Update userData with the loaded profile picture
+                setUserData(prev => ({
+                  ...prev,
+                  photoURL: profilePicURL
+                }));
+              }
+            })
+            .catch(error => {
+              console.warn('Failed to load profile picture:', error);
+              // Keep using the Google photo URL or default - don't block dashboard loading
+            });
+        }
 
         // Fetch user's groups
         const userGroups = await crewConnectService.getUserCrews();
@@ -142,12 +174,29 @@ const Dashboard = () => {
         let recentActivity = 0;
 
         // Count online members and recent activity from groups
+        const allMembers = new Set(); // Use Set to avoid duplicates
         for (const group of userGroups) {
           try {
             const members = await crewConnectService.getCrewMembers(group.id);
             onlineMembers += members.filter(
               (member) => member.isOnline && member.uid !== currentUser.uid
             ).length;
+
+            // Add members to the set for later use
+            members.forEach(member => {
+              if (member.uid !== currentUser.uid) {
+                allMembers.add(JSON.stringify({
+                  uid: member.uid,
+                  displayName: member.displayName || member.username || 'Unknown',
+                  email: member.email,
+                  profilePicture: member.profilePicture,
+                  isOnline: member.isOnline || false,
+                  domain: member.domain || 'Developer',
+                  groupName: group.name,
+                  role: member.role || 'Member'
+                }));
+              }
+            });
 
             // Count recent activity (messages in last 24 hours)
             const groupMessages = await crewConnectService.getCrewMessages(
@@ -166,6 +215,10 @@ const Dashboard = () => {
             console.warn(`Failed to fetch data for group ${group.id}:`, error);
           }
         }
+
+        // Convert Set back to array
+        const uniqueMembers = Array.from(allMembers).map(memberStr => JSON.parse(memberStr));
+        setAllTeamMembers(uniqueMembers);
 
         setStats({
           totalGroups: userGroups.length,
@@ -199,6 +252,60 @@ const Dashboard = () => {
 
     fetchDashboardData();
   }, [currentUser?.uid]);
+
+  // Update userData when userProfile changes (from AuthContext)
+  useEffect(() => {
+    if (userProfile && currentUser) {
+      setUserData(prev => ({
+        ...prev,
+        displayName: userProfile.displayName || userProfile.username || prev?.displayName,
+        photoURL: userProfile.profilePicture?.url || userProfile.profilePictureUrl || userProfile.photoURL || prev?.photoURL
+      }));
+      
+      // Also update currentUserProfilePicture state
+      const newProfilePic = userProfile.profilePicture?.url || userProfile.profilePictureUrl || userProfile.photoURL;
+      if (newProfilePic && newProfilePic !== currentUserProfilePicture) {
+        setCurrentUserProfilePicture(newProfilePic);
+      }
+    }
+  }, [userProfile, currentUser, currentUserProfilePicture]);
+
+  // Listen for profile picture updates in real-time (reduced frequency since AuthContext handles most updates)
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const checkForProfileUpdates = () => {
+      storageService.getProfilePictureURL(currentUser.uid)
+        .then(latestProfilePicURL => {
+          if (latestProfilePicURL && latestProfilePicURL !== currentUserProfilePicture) {
+            setCurrentUserProfilePicture(latestProfilePicURL);
+            setUserData(prev => ({
+              ...prev,
+              photoURL: latestProfilePicURL
+            }));
+          }
+        })
+        .catch(error => {
+          // Silently fail to avoid console spam - profile picture updates are not critical
+        });
+    };
+
+    // Check for updates every 60 seconds (reduced from 30s since AuthContext handles immediate updates)
+    const interval = setInterval(checkForProfileUpdates, 60000);
+    
+    return () => clearInterval(interval);
+  }, [currentUser?.uid, currentUserProfilePicture]);
+
+  // Update profile picture when userProfile changes (from AuthContext)
+  useEffect(() => {
+    if (userProfile?.profilePicture && userProfile.profilePicture !== currentUserProfilePicture) {
+      setCurrentUserProfilePicture(userProfile.profilePicture);
+      setUserData(prev => ({
+        ...prev,
+        photoURL: userProfile.profilePicture
+      }));
+    }
+  }, [userProfile, currentUserProfilePicture]);
 
   // Real-time invitation listener
   useEffect(() => {
@@ -246,6 +353,16 @@ const Dashboard = () => {
       // Force navigation even if logout fails
       navigate("/login", { replace: true });
     }
+  };
+
+  const handleViewMemberProfile = (memberId) => {
+    setSelectedMemberId(memberId);
+    setShowMemberProfile(true);
+  };
+
+  const handleCloseMemberProfile = () => {
+    setShowMemberProfile(false);
+    setSelectedMemberId(null);
   };
 
   const quickActions = useMemo(() => [
@@ -579,8 +696,88 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+
+          {/* Team Members Section */}
+          <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-400" />
+                Team Members ({allTeamMembers.length})
+              </h3>
+              <button
+                onClick={() => navigate("/groups")}
+                className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1 hover:underline"
+              >
+                <UserPlus className="w-4 h-4" />
+                Find more
+              </button>
+            </div>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {allTeamMembers.length > 0 ? (
+                allTeamMembers.map((member) => (
+                  <div
+                    key={member.uid}
+                    className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all duration-200 cursor-pointer group"
+                    onClick={() => handleViewMemberProfile(member.uid)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center overflow-hidden">
+                        {member.profilePicture ? (
+                          <img
+                            src={member.profilePicture}
+                            alt={member.displayName}
+                            className="w-10 h-10 rounded-full object-cover"
+                          />
+                        ) : (
+                          <User className="w-5 h-5 text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-white text-sm font-medium">
+                          {member.displayName}
+                        </p>
+                        <p className="text-gray-400 text-xs">
+                          {member.domain} • {member.groupName}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${member.isOnline ? 'bg-green-400' : 'bg-gray-500'}`}></div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewMemberProfile(member.uid);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-cyan-400 hover:text-cyan-300 p-1 hover:bg-cyan-500/10 rounded"
+                        title="View Profile"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                  <p className="text-gray-400 text-sm">
+                    No team members yet
+                  </p>
+                  <p className="text-gray-500 text-xs mt-1">
+                    Join groups to connect with team members
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Team Member Profile Modal */}
+      <TeamMemberProfile
+        memberId={selectedMemberId}
+        isOpen={showMemberProfile}
+        onClose={handleCloseMemberProfile}
+      />
     </div>
   );
 };

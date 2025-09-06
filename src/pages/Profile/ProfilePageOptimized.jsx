@@ -28,10 +28,12 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { profileService } from '../../services/profileService';
+import { storageService } from '../../services/storageService';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import ProfileStats from '../../components/ProfileStats';
 import SkillsSection from '../../components/SkillsSection';
 import ResumeSection from '../../components/ResumeSection';
+import ProfilePictureUpload from '../../components/ProfilePictureUpload';
 
 const ProfilePage = () => {
   const { currentUser, userProfile } = useAuth();
@@ -40,6 +42,7 @@ const ProfilePage = () => {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [profilePictureURL, setProfilePictureURL] = useState(null);
 
   // Form states
   const [isEditing, setIsEditing] = useState(false);
@@ -93,6 +96,11 @@ const ProfilePage = () => {
         } else {
           setProfile(userProfile);
         }
+
+        // Load profile picture
+        const profilePicURL = await storageService.getProfilePictureURL(currentUser.uid);
+        setProfilePictureURL(profilePicURL);
+
       } catch (error) {
         console.error('Failed to load profile:', error);
         setError('Failed to load profile data');
@@ -146,48 +154,42 @@ const ProfilePage = () => {
   }, [currentUser?.uid]);
 
   // Handle resume upload with progress tracking
-  const handleResumeUpload = useCallback(async (file) => {
-    if (!currentUser?.uid || !file) return;
-
-    setResumeUploading(true);
-    setResumeProgress(0);
-    setError('');
+  const handleResumeUpload = useCallback(async (resumeData) => {
+    if (!currentUser?.uid || !resumeData) return;
 
     try {
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setResumeProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
-
-      const result = await profileService.uploadAndParseResume(file, currentUser.uid);
+      // Update local profile state with new resume
+      setProfile(prev => ({
+        ...prev,
+        resume: resumeData,
+        // Update profile with parsed data if available
+        ...(resumeData.parsedData && {
+          skills: [...new Set([...(prev.skills || []), ...(resumeData.parsedData.skills || [])])],
+          domains: resumeData.parsedData.domains,
+          experience: resumeData.parsedData.experience_level
+        })
+      }));
       
-      clearInterval(progressInterval);
-      setResumeProgress(100);
-
-      if (result.success) {
-        // Update local profile state
-        setProfile(prev => ({
-          ...prev,
-          resume: result.resumeData,
-          // Update profile with parsed data
-          skills: [...(prev.skills || []), ...result.parsedData.skills],
-          domains: result.parsedData.domains,
-          experience: result.parsedData.experience_level
-        }));
-        
-        console.log('✅ Resume uploaded and parsed successfully');
-        setShowResumeModal(false);
-      } else {
-        throw new Error(result.error || 'Upload failed');
-      }
+      console.log('✅ Resume uploaded and profile updated');
     } catch (error) {
-      console.error('❌ Resume upload failed:', error);
+      console.error('❌ Resume update failed:', error);
       setError(error.message);
-    } finally {
-      setResumeUploading(false);
-      setResumeProgress(0);
     }
   }, [currentUser?.uid]);
+
+  // Handle profile picture update
+  const handleProfilePictureUpdate = useCallback(async (newURL) => {
+    setProfilePictureURL(newURL);
+    
+    // Update profile in database
+    if (currentUser?.uid) {
+      try {
+        await handleProfileUpdate({ profilePicture: newURL });
+      } catch (error) {
+        console.error('Failed to update profile picture in database:', error);
+      }
+    }
+  }, [currentUser?.uid, handleProfileUpdate]);
 
   // Handle team preferences update
   const handleTeamPreferencesUpdate = useCallback(async (preferences) => {
@@ -263,25 +265,13 @@ const ProfilePage = () => {
             <div className="relative z-10 flex items-center justify-between flex-wrap gap-6">
               <div className="flex items-center gap-6">
                 {/* Profile Picture */}
-                <div className="relative">
-                  <div className="w-24 h-24 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border-2 border-white/20 shadow-2xl overflow-hidden">
-                    {displayProfile.profilePicture ? (
-                      <img
-                        src={displayProfile.profilePicture}
-                        alt="Profile"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <User size={32} className="text-white" />
-                    )}
-                  </div>
-                  <button 
-                    onClick={() => {/* TODO: Profile picture upload */}}
-                    className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white shadow-lg hover:bg-blue-600 transition-colors"
-                  >
-                    <Edit3 size={14} />
-                  </button>
-                </div>
+                <ProfilePictureUpload
+                  currentPhotoURL={profilePictureURL || displayProfile.profilePicture}
+                  onPhotoUpdate={handleProfilePictureUpdate}
+                  size="large"
+                  showGoogleSync={true}
+                  className="w-24 h-24"
+                />
 
                 <div>
                   <h1 className="text-3xl font-bold mb-2 text-white">
@@ -400,11 +390,8 @@ const ProfilePage = () => {
 
           {activeTab === 'resume' && (
             <ResumeSection
-              resume={displayProfile.resume}
-              onUpload={handleResumeUpload}
-              onRemove={() => profileService.removeResume(currentUser?.uid)}
-              uploading={resumeUploading}
-              progress={resumeProgress}
+              userId={currentUser?.uid}
+              onResumeUpdate={handleResumeUpload}
             />
           )}
 

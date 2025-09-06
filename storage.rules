@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Profile Pictures - Users can only access their own profile pictures
+    match /profile-pictures/{userId}/{allPaths=**} {
+      allow read, write, delete: if request.auth != null 
+        && request.auth.uid == userId;
+      
+      // Allow team members to read profile pictures
+      allow read: if request.auth != null 
+        && isTeamMember(request.auth.uid, userId);
+    }
+    
+    // Resumes - Users can manage their own resumes
+    match /resumes/{userId}/{allPaths=**} {
+      allow read, write, delete: if request.auth != null 
+        && request.auth.uid == userId;
+      
+      // Allow team members to read resumes
+      allow read: if request.auth != null 
+        && isTeamMember(request.auth.uid, userId);
+    }
+    
+    // Temporary files - Short-lived uploads
+    match /temp/{allPaths=**} {
+      allow read, write, delete: if request.auth != null 
+        && request.time < resource.timeCreated.addDuration(3600); // 1 hour
+    }
+    
+    // Helper function to check team membership
+    function isTeamMember(currentUserId, targetUserId) {
+      // For now, allow all authenticated users to view each other's content
+      // In production, implement proper team/organization membership logic
+      return true;
+      
+      // Example team membership check:
+      // return exists(/databases/(default)/documents/teams/{teamId}/members/{currentUserId})
+      //   && exists(/databases/(default)/documents/teams/{teamId}/members/{targetUserId});
+    }
+    
+    // Validate file size and type for profile pictures
+    function isValidProfilePicture() {
+      return request.resource.size < 5 * 1024 * 1024 // 5MB max
+        && request.resource.contentType.matches('image/.*');
+    }
+    
+    // Validate file size and type for resumes
+    function isValidResume() {
+      return request.resource.size < 10 * 1024 * 1024 // 10MB max
+        && (request.resource.contentType.matches('application/pdf')
+          || request.resource.contentType.matches('application/msword')
+          || request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.wordprocessingml.document'));
+    }
+  }
+}
