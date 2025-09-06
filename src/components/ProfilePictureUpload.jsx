@@ -80,7 +80,7 @@ const ProfilePictureUpload = ({
 
   const handleGoogleSync = async () => {
     if (!user?.photoURL) {
-      setError('No Google profile picture available');
+      // Silent return - no error shown to user
       return;
     }
 
@@ -88,7 +88,7 @@ const ProfilePictureUpload = ({
     setError('');
 
     try {
-      const result = await storageService.syncGoogleProfilePicture();
+      const result = await storageService.syncGoogleProfilePicture(null, { silent: false });
       
       if (result.success) {
         setPreviewURL(result.url);

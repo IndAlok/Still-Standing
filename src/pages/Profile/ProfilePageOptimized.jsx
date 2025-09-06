@@ -97,9 +97,22 @@ const ProfilePage = () => {
           setProfile(userProfile);
         }
 
-        // Load profile picture
+        // Load profile picture with optimized logic
         const profilePicURL = await storageService.getProfilePictureURL(currentUser.uid);
-        setProfilePictureURL(profilePicURL);
+        if (profilePicURL) {
+          setProfilePictureURL(profilePicURL);
+        } else if (currentUser.photoURL && !profilePicURL) {
+          // Silently sync Google profile picture in background if user has Google photo but no profile picture
+          storageService.syncGoogleProfilePicture(currentUser.uid, { silent: true })
+            .then(result => {
+              if (result.success && result.url && !result.cached) {
+                setProfilePictureURL(result.url);
+              }
+            })
+            .catch(() => {
+              // Silent fail - no error messages for background sync
+            });
+        }
 
       } catch (error) {
         console.error('Failed to load profile:', error);
@@ -111,7 +124,7 @@ const ProfilePage = () => {
     };
 
     loadProfile();
-  }, [currentUser?.uid, userProfile]);
+  }, [currentUser?.uid]); // Remove userProfile dependency to prevent loops
 
   // Memoized profile data to display
   const displayProfile = useMemo(() => {
@@ -153,6 +166,36 @@ const ProfilePage = () => {
     }
   }, [currentUser?.uid]);
 
+  // Handle profile picture update with immediate UI feedback
+  const handleProfilePictureUpdate = useCallback(async (newURL) => {
+    if (!currentUser?.uid) return;
+
+    try {
+      // Immediately update local state for instant UI feedback
+      setProfilePictureURL(newURL);
+      
+      // Update profile optimistically
+      setProfile(prev => ({ 
+        ...prev, 
+        profilePicture: newURL,
+        photoURL: newURL
+      }));
+
+      // Update in backend (non-blocking for UI)
+      profileService.updateUserProfile(currentUser.uid, {
+        profilePicture: newURL,
+        photoURL: newURL
+      }).catch(error => {
+        console.error('Failed to update profile picture in backend:', error);
+        // Could revert state here if needed, but for now just log
+      });
+
+    } catch (error) {
+      console.error('Profile picture update error:', error);
+      setError('Failed to update profile picture');
+    }
+  }, [currentUser?.uid]);
+
   // Handle resume upload with progress tracking
   const handleResumeUpload = useCallback(async (resumeData) => {
     if (!currentUser?.uid || !resumeData) return;
@@ -176,20 +219,6 @@ const ProfilePage = () => {
       setError(error.message);
     }
   }, [currentUser?.uid]);
-
-  // Handle profile picture update
-  const handleProfilePictureUpdate = useCallback(async (newURL) => {
-    setProfilePictureURL(newURL);
-    
-    // Update profile in database
-    if (currentUser?.uid) {
-      try {
-        await handleProfileUpdate({ profilePicture: newURL });
-      } catch (error) {
-        console.error('Failed to update profile picture in database:', error);
-      }
-    }
-  }, [currentUser?.uid, handleProfileUpdate]);
 
   // Handle team preferences update
   const handleTeamPreferencesUpdate = useCallback(async (preferences) => {

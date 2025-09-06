@@ -393,16 +393,31 @@ class StorageService {
   /**
    * Sync Google account profile picture
    */
-  async syncGoogleProfilePicture(userId = null) {
+  async syncGoogleProfilePicture(userId = null, options = { silent: false }) {
     try {
       const currentUserId = userId || this.getCurrentUserId();
       const user = auth.currentUser;
 
       if (!user || !user.photoURL) {
-        throw new Error('No Google profile picture available');
+        if (!options.silent) {
+          throw new Error('No Google profile picture available');
+        }
+        return { success: false, reason: 'No Google photo available' };
       }
 
-      console.log('Syncing Google profile picture from:', user.photoURL);
+      // Check if we've already synced this photo recently
+      const cacheKey = `google-sync-${currentUserId}`;
+      const lastSync = cacheService.get(cacheKey);
+      if (lastSync && lastSync === user.photoURL) {
+        if (!options.silent) {
+          console.log('Google profile picture already up to date');
+        }
+        return { success: true, url: user.photoURL, cached: true };
+      }
+
+      if (!options.silent) {
+        console.log('Syncing Google profile picture from:', user.photoURL);
+      }
 
       // For CORS workaround, directly use Google's photo URL
       // This avoids the download and re-upload process that causes CORS issues
@@ -421,10 +436,16 @@ class StorageService {
       // Update user profile in Firestore with Google photo URL directly
       await this.updateUserProfilePicture(currentUserId, user.photoURL, profilePictureData);
 
-      console.log('Google profile picture synced successfully using direct URL');
+      if (!options.silent) {
+        console.log('Google profile picture synced successfully using direct URL');
+      }
 
-      // Clear cache
+      // Cache the sync to prevent repeated syncing
+      cacheService.set(cacheKey, user.photoURL, 3600000); // 1 hour cache
+
+      // Clear profile cache to force refresh
       cacheService.delete(`profile-${currentUserId}`);
+      cacheService.delete(`profile-pic-${currentUserId}`);
 
       return {
         success: true,
@@ -439,8 +460,11 @@ class StorageService {
       };
 
     } catch (error) {
-      console.error('Google profile sync error:', error);
-      throw new Error(`Google sync failed: ${error.message}`);
+      if (!options.silent) {
+        console.error('Google profile sync error:', error);
+        throw new Error(`Google sync failed: ${error.message}`);
+      }
+      return { success: false, error: error.message };
     }
   }
 

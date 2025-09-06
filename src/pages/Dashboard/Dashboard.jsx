@@ -168,41 +168,41 @@ const Dashboard = () => {
         setRecentMessages(sortedMessages);
         console.log("Recent messages fetched:", sortedMessages);
 
-        // Calculate real stats
+        // Calculate real stats with PARALLEL PROCESSING for much better performance
         const totalMessages = recentMessages.length;
         let onlineMembers = 1; // At least the current user
         let recentActivity = 0;
 
-        // Count online members and recent activity from groups
-        const allMembers = new Set(); // Use Set to avoid duplicates
-        for (const group of userGroups) {
+        // Use Promise.allSettled for parallel processing of group data
+        const groupDataPromises = userGroups.map(async (group) => {
           try {
-            const members = await crewConnectService.getCrewMembers(group.id);
-            onlineMembers += members.filter(
-              (member) => member.isOnline && member.uid !== currentUser.uid
-            ).length;
+            const [membersResult, messagesResult] = await Promise.allSettled([
+              crewConnectService.getCrewMembers(group.id),
+              crewConnectService.getCrewMessages(group.id, 50)
+            ]);
 
-            // Add members to the set for later use
-            members.forEach(member => {
-              if (member.uid !== currentUser.uid) {
-                allMembers.add(JSON.stringify({
-                  uid: member.uid,
-                  displayName: member.displayName || member.username || 'Unknown',
-                  email: member.email,
-                  profilePicture: member.profilePicture,
-                  isOnline: member.isOnline || false,
-                  domain: member.domain || 'Developer',
-                  groupName: group.name,
-                  role: member.role || 'Member'
-                }));
-              }
-            });
+            const members = membersResult.status === 'fulfilled' ? membersResult.value : [];
+            const groupMessages = messagesResult.status === 'fulfilled' ? messagesResult.value : [];
+
+            // Process members
+            const groupOnlineMembers = members.filter(
+              (member) => member.isOnline && member.uid !== currentUser.uid
+            );
+
+            const groupMembersData = members
+              .filter(member => member.uid !== currentUser.uid)
+              .map(member => ({
+                uid: member.uid,
+                displayName: member.displayName || member.username || 'Unknown',
+                email: member.email,
+                profilePicture: member.profilePicture,
+                isOnline: member.isOnline || false,
+                domain: member.domain || 'Developer',
+                groupName: group.name,
+                role: member.role || 'Member'
+              }));
 
             // Count recent activity (messages in last 24 hours)
-            const groupMessages = await crewConnectService.getCrewMessages(
-              group.id,
-              50
-            );
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
             const recentGroupActivity = groupMessages.filter((msg) => {
               const msgDate = msg.sentAt?.toDate
@@ -210,11 +210,43 @@ const Dashboard = () => {
                 : new Date(msg.sentAt);
               return msgDate > oneDayAgo;
             }).length;
-            recentActivity += recentGroupActivity;
+
+            return {
+              groupId: group.id,
+              groupName: group.name,
+              onlineMembers: groupOnlineMembers.length,
+              members: groupMembersData,
+              recentActivity: recentGroupActivity
+            };
           } catch (error) {
             console.warn(`Failed to fetch data for group ${group.id}:`, error);
+            return {
+              groupId: group.id,
+              groupName: group.name,
+              onlineMembers: 0,
+              members: [],
+              recentActivity: 0
+            };
           }
-        }
+        });
+
+        // Process all groups in parallel
+        const groupDataResults = await Promise.allSettled(groupDataPromises);
+        
+        // Aggregate results
+        const allMembers = new Set();
+        groupDataResults.forEach(result => {
+          if (result.status === 'fulfilled') {
+            const groupData = result.value;
+            onlineMembers += groupData.onlineMembers;
+            recentActivity += groupData.recentActivity;
+            
+            // Add members to set (avoiding duplicates)
+            groupData.members.forEach(member => {
+              allMembers.add(JSON.stringify(member));
+            });
+          }
+        });
 
         // Convert Set back to array
         const uniqueMembers = Array.from(allMembers).map(memberStr => JSON.parse(memberStr));
@@ -270,7 +302,7 @@ const Dashboard = () => {
     }
   }, [userProfile, currentUser, currentUserProfilePicture]);
 
-  // Listen for profile picture updates in real-time (reduced frequency since AuthContext handles most updates)
+  // Listen for profile picture updates in real-time (optimized to prevent blinking)
   useEffect(() => {
     if (!currentUser?.uid) return;
 
@@ -290,8 +322,8 @@ const Dashboard = () => {
         });
     };
 
-    // Check for updates every 60 seconds (reduced from 30s since AuthContext handles immediate updates)
-    const interval = setInterval(checkForProfileUpdates, 60000);
+    // Reduced frequency to prevent blinking - only check every 5 minutes
+    const interval = setInterval(checkForProfileUpdates, 300000);
     
     return () => clearInterval(interval);
   }, [currentUser?.uid, currentUserProfilePicture]);

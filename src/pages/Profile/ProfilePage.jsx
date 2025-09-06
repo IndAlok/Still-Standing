@@ -605,8 +605,16 @@ const UserProfilePage = () => {
       if (profilePicture) {
         setProfilePictureURL(profilePicture);
       } else if (userProfile.photoURL) {
-        // Sync Google profile picture if available
-        await handleGoogleProfileSync();
+        // Silent background sync for Google profile picture
+        storageService.syncGoogleProfilePicture(userProfile.uid, { silent: true })
+          .then(result => {
+            if (result.success && result.url && !result.cached) {
+              setProfilePictureURL(result.url);
+            }
+          })
+          .catch(() => {
+            // Silent failure - no user notification needed
+          });
       }
       
       // Load resume data
@@ -631,8 +639,7 @@ const UserProfilePage = () => {
   // Handle Google profile picture sync
   const handleGoogleProfileSync = useCallback(async () => {
     if (!currentUser?.photoURL || !currentUser?.uid) {
-      console.error('No Google photo or user authentication available');
-      alert('No Google profile picture available to sync');
+      // Silent return - no alert for missing Google photo
       return;
     }
     
@@ -640,7 +647,7 @@ const UserProfilePage = () => {
       setIsProfilePictureLoading(true);
       console.log('Syncing Google profile picture...');
       
-      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid);
+      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid, { silent: true });
       console.log('Sync result:', syncResult);
       
       if (syncResult.success && syncResult.url) {
@@ -648,14 +655,18 @@ const UserProfilePage = () => {
         await updateUserProfile({ profilePicture: syncResult.url });
         console.log('Google profile picture synced successfully:', syncResult.url);
         
-        // Show success message
+        // Show success message only if sync was successful
         alert('Google profile picture synced successfully!');
-      } else {
-        throw new Error('Sync failed: No URL returned');
+      } else if (!syncResult.success && !syncResult.cached) {
+        // Only show error if it's an actual error, not just missing photo
+        console.warn('Google sync failed:', syncResult.reason);
       }
     } catch (error) {
       console.error('Error syncing Google profile picture:', error);
-      alert(`Failed to sync Google profile picture: ${error.message}`);
+      // Only show alert for actual errors, not missing photos
+      if (!error.message.includes('No Google profile picture available')) {
+        alert(`Failed to sync Google profile picture: ${error.message}`);
+      }
     } finally {
       setIsProfilePictureLoading(false);
     }

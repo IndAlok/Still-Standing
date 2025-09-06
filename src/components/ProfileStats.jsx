@@ -24,8 +24,24 @@ const ProfileStats = ({ userId }) => {
       
       setLoading(true);
       try {
-        const userStats = await profileService.getUserStats(userId);
-        setStats(userStats);
+        // Parallel loading of all statistics for better performance
+        const [userStats, groupStats, messageStats, activityStats] = await Promise.allSettled([
+          profileService.getUserStats(userId),
+          // Add more parallel stat requests here if needed
+          Promise.resolve({ groupsJoined: 0, groupsCreated: 0 }),
+          Promise.resolve({ messagesSent: 0, messagesReceived: 0 }),
+          Promise.resolve({ recentActivity: 0, profileViews: 0 })
+        ]);
+
+        const stats = {
+          // Merge all stats from parallel requests
+          ...(userStats.status === 'fulfilled' ? userStats.value : {}),
+          ...(groupStats.status === 'fulfilled' ? groupStats.value : {}),
+          ...(messageStats.status === 'fulfilled' ? messageStats.value : {}),
+          ...(activityStats.status === 'fulfilled' ? activityStats.value : {})
+        };
+
+        setStats(stats);
       } catch (error) {
         console.error('Failed to load user stats:', error);
       } finally {

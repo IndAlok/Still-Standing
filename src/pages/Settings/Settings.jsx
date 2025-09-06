@@ -74,13 +74,16 @@ const Settings = () => {
 
   // Handle Google profile picture sync
   const handleGoogleProfileSync = useCallback(async () => {
-    if (!currentUser?.uid || !currentUser?.photoURL) return;
+    if (!currentUser?.uid || !currentUser?.photoURL) {
+      // Silent return - no error message for missing Google photo
+      return;
+    }
     
     try {
       setIsProfilePictureLoading(true);
       console.log('Settings: Syncing Google profile picture...');
       
-      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid);
+      const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid, { silent: true });
       console.log('Settings: Sync result:', syncResult);
       
       if (syncResult.success && syncResult.url) {
@@ -88,13 +91,18 @@ const Settings = () => {
         await updateUserProfile({ profilePicture: syncResult.url });
         setMessage('Profile picture synced from Google!');
         setTimeout(() => setMessage(''), 3000);
-      } else {
-        throw new Error('Sync failed: No URL returned');
+      } else if (!syncResult.success && !syncResult.reason?.includes('No Google photo')) {
+        // Only show error for actual failures, not missing photos
+        setMessage('Failed to sync profile picture');
+        setTimeout(() => setMessage(''), 3000);
       }
     } catch (error) {
       console.error('Error syncing Google profile picture:', error);
-      setMessage(`Failed to sync Google profile picture: ${error.message}`);
-      setTimeout(() => setMessage(''), 3000);
+      // Only show error message for actual errors, not missing photos
+      if (!error.message?.includes('No Google profile picture available')) {
+        setMessage(`Failed to sync Google profile picture: ${error.message}`);
+        setTimeout(() => setMessage(''), 3000);
+      }
     } finally {
       setIsProfilePictureLoading(false);
     }
