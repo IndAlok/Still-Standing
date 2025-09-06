@@ -561,7 +561,7 @@ def health_check():
 
 @app.route('/api/parse-resume', methods=['POST'])
 def parse_resume_endpoint():
-    """Parse uploaded resume file"""
+    """Parse uploaded resume file and optionally populate user profile"""
     try:
         # Check if file is in request
         if 'resume' not in request.files:
@@ -577,7 +577,13 @@ def parse_resume_endpoint():
                 "error": "No file selected"
             }), 400
         
+        # Get optional parameters
+        user_id = request.form.get('userId')
+        populate_profile = request.form.get('populateProfile', 'false').lower() == 'true'
+        
         logger.info(f"Processing resume upload: {file.filename}")
+        if populate_profile and user_id:
+            logger.info(f"Will populate profile for user: {user_id}")
         
         # Save uploaded file
         file_path = save_uploaded_file(file)
@@ -593,6 +599,42 @@ def parse_resume_endpoint():
             
             if result["success"]:
                 logger.info(f"Successfully parsed resume using {result['method']}")
+                
+                # If profile population is requested and user_id is provided
+                if populate_profile and user_id:
+                    try:
+                        # Call AI matchmaker service to populate profile
+                        import requests
+                        
+                        populate_data = {
+                            'resumeData': result['data'],
+                            'userId': user_id,
+                            'existingProfile': {}  # Could be passed from frontend
+                        }
+                        
+                        # Call the profile population service
+                        response = requests.post(
+                            'http://localhost:5001/api/profile/populate',
+                            json=populate_data,
+                            timeout=30
+                        )
+                        
+                        if response.ok:
+                            profile_result = response.json()
+                            result['profile_populated'] = True
+                            result['profile_data'] = profile_result.get('profile', {})
+                            result['profile_completeness'] = profile_result.get('completeness', 0)
+                            logger.info(f"Profile populated successfully. Completeness: {result['profile_completeness']}%")
+                        else:
+                            logger.warning(f"Profile population failed: {response.text}")
+                            result['profile_populated'] = False
+                            result['profile_error'] = f"Population service error: {response.status_code}"
+                            
+                    except Exception as profile_error:
+                        logger.error(f"Profile population error: {profile_error}")
+                        result['profile_populated'] = False
+                        result['profile_error'] = str(profile_error)
+                
                 return jsonify(result)
             else:
                 logger.error(f"Failed to parse resume: {result.get('error')}")

@@ -854,11 +854,13 @@ const UserProfilePage = () => {
           parsedData: resumeData.parsedData,
           resumeId: resumeData.id,
           parseMethod: resumeData.parseMethod,
-          insights: insights
+          insights: insights,
+          profilePopulated: resumeData.profilePopulated,
+          profileCompleteness: resumeData.profileCompleteness
         });
 
         // Update user profile with comprehensive resume data
-        await updateUserProfile({
+        const profileUpdateData = {
           resume: {
             fileName: resumeData.fileName,
             resumeId: resumeData.id,
@@ -869,23 +871,59 @@ const UserProfilePage = () => {
             insights: insights,
             fileSize: resumeData.fileSize,
             fileType: resumeData.fileType,
-            storageMethod: 'comprehensive-ai-collection',
-            completenessScore: insights?.completenessScore || 0
+            storageMethod: 'comprehensive-ai-collection-with-profile',
+            completenessScore: insights?.completenessScore || 0,
+            profilePopulated: resumeData.profilePopulated,
+            profileCompleteness: resumeData.profileCompleteness
           }
-        });
+        };
 
-        // Show success message with insights
-        const successMessage = insights 
-          ? `Resume uploaded successfully! 
-             Parse Status: ${resumeData.parseStatus}
-             Method: ${resumeData.parseMethod}
-             Completeness: ${insights.completenessScore}%
-             Skills Found: ${insights.technicalSkillsCount}
-             Experience: ${insights.totalExperience} years`
-          : `Resume uploaded successfully! Parse status: ${resumeData.parseStatus}`;
+        // If profile was automatically populated, merge the populated data
+        if (resumeData.profilePopulated && resumeData.profileData) {
+          console.log('🎉 Merging auto-populated profile data...');
+          
+          // Merge populated profile data with current profile
+          const populatedProfile = resumeData.profileData;
+          const mergedProfile = { ...profileUpdateData, ...populatedProfile };
+          
+          await updateUserProfile(mergedProfile);
+          
+          // Refresh the auth context to show updated profile
+          if (refreshUserProfile) {
+            await refreshUserProfile();
+          }
+          
+          // Show enhanced success message
+          const successMessage = `🎉 Resume uploaded and profile auto-populated successfully!
+            
+📊 Results:
+• Parse Status: ${resumeData.parseStatus}
+• Parse Method: ${resumeData.parseMethod}  
+• Profile Completeness: ${resumeData.profileCompleteness}%
+• Skills Found: ${insights?.technicalSkillsCount || 0}
+• Experience: ${insights?.totalExperience || 0} years
+• Auto-populated Fields: ${Object.keys(populatedProfile).length}
+
+✨ Your profile has been automatically updated with information from your resume!`;
+
+          alert(successMessage);
+        } else {
+          // Standard profile update without auto-population
+          await updateUserProfile(profileUpdateData);
+          
+          const successMessage = insights 
+            ? `Resume uploaded successfully! 
+               Parse Status: ${resumeData.parseStatus}
+               Method: ${resumeData.parseMethod}
+               Completeness: ${insights.completenessScore}%
+               Skills Found: ${insights.technicalSkillsCount}
+               Experience: ${insights.totalExperience} years`
+            : `Resume uploaded successfully! Parse status: ${resumeData.parseStatus}`;
+
+          alert(successMessage);
+        }
 
         console.log('✅ Resume uploaded and processed successfully');
-        alert(successMessage);
       } else {
         throw new Error('Upload failed: ' + (result.parseError || 'Unknown error'));
       }
@@ -1195,6 +1233,57 @@ const UserProfilePage = () => {
                               )}
                             </div>
                           )}
+
+                          {/* Profile Population Status */}
+                          {uploadedResume.profilePopulated && (
+                            <div className="bg-green-600/20 p-4 rounded-xl border border-green-500/30">
+                              <h5 className="text-green-400 font-medium mb-2 flex items-center gap-2">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
+                                </svg>
+                                Profile Automatically Updated
+                              </h5>
+                              <p className="text-green-300 text-sm">
+                                Your profile has been automatically populated with information from your resume.
+                              </p>
+                              {uploadedResume.profileCompleteness && (
+                                <p className="text-green-400 text-sm mt-1">
+                                  Profile completeness: {uploadedResume.profileCompleteness}%
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Parsing Quality Metrics */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center">
+                              <div className="text-2xl font-bold text-green-400">
+                                {uploadedResume.insights?.completenessScore || 0}%
+                              </div>
+                              <div className="text-xs text-slate-400">Completeness</div>
+                            </div>
+                            
+                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center">
+                              <div className="text-2xl font-bold text-blue-400">
+                                {uploadedResume.insights?.technicalSkillsCount || 0}
+                              </div>
+                              <div className="text-xs text-slate-400">Skills</div>
+                            </div>
+                            
+                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center">
+                              <div className="text-2xl font-bold text-purple-400">
+                                {uploadedResume.insights?.totalExperience || 0}
+                              </div>
+                              <div className="text-xs text-slate-400">Years Exp</div>
+                            </div>
+                            
+                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center">
+                              <div className="text-lg font-bold text-cyan-400">
+                                {uploadedResume.parseMethod || 'AI'}
+                              </div>
+                              <div className="text-xs text-slate-400">Method</div>
+                            </div>
+                          </div>
 
                           {/* Skills Summary */}
                           {uploadedResume.insights.technicalSkillsCount > 0 && (

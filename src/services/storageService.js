@@ -172,19 +172,32 @@ class StorageService {
 
       const timestamp = Date.now();
       
-      // Parse resume using comprehensive AI backend
+      // Parse resume using comprehensive AI backend with profile population
       let parsedData = null;
       let parseError = null;
       let parseMethod = 'none';
+      let profilePopulated = false;
+      let profileData = null;
+      let profileCompleteness = 0;
 
       try {
-        console.log('📄 Parsing resume with comprehensive AI backend...');
-        parsedData = await this.parseResumeWithAI(file);
-        parseMethod = 'comprehensive_ai';
+        console.log('📄 Parsing resume with comprehensive AI backend and profile population...');
+        const parseResult = await this.parseResumeWithAI(file, currentUserId, true);
+        
+        parsedData = parseResult.data;
+        parseMethod = parseResult.method || 'comprehensive_ai';
+        profilePopulated = parseResult.profile_populated || false;
+        profileData = parseResult.profile_data || null;
+        profileCompleteness = parseResult.profile_completeness || 0;
         
         // Extract key insights from parsed data
         const insights = this.extractResumeInsights(parsedData);
         console.log('🎯 Resume insights:', insights);
+        
+        if (profilePopulated) {
+          console.log('🎉 Profile automatically populated from resume!');
+          console.log('📈 Profile completeness:', profileCompleteness + '%');
+        }
         
       } catch (aiError) {
         console.error('❌ AI parsing failed:', aiError);
@@ -209,18 +222,25 @@ class StorageService {
         parseStatus: parsedData ? 'success' : (parseError ? 'failed' : 'pending'),
         parseMethod: parseMethod,
         
+        // Profile population information
+        profilePopulated: profilePopulated,
+        profileData: profileData,
+        profileCompleteness: profileCompleteness,
+        
         // Extracted insights for quick access
         insights: parsedData ? this.extractResumeInsights(parsedData) : null,
         
         // Metadata
         visibility: 'team',
-        uploadMethod: 'comprehensive-ai-collection',
-        version: '2.0',
+        uploadMethod: 'comprehensive-ai-collection-with-profile',
+        version: '2.1',
         metadata: {
           timestamp,
           originalName: file.name,
           comprehensiveParser: true,
-          geminiAiUsed: parseMethod === 'comprehensive_ai'
+          profileIntegration: true,
+          geminiAiUsed: parseMethod === 'comprehensive_ai',
+          autoPopulatedProfile: profilePopulated
         }
       };
 
@@ -276,13 +296,21 @@ class StorageService {
   }
 
   /**
-   * Parse resume using the new comprehensive AI backend
+   * Parse resume using the comprehensive AI backend with profile population
    */
-  async parseResumeWithAI(file) {
+  async parseResumeWithAI(file, userId, populateProfile = true) {
     const formData = new FormData();
     formData.append('resume', file);
+    
+    // Add optional parameters for profile population
+    if (userId) {
+      formData.append('userId', userId);
+    }
+    if (populateProfile) {
+      formData.append('populateProfile', 'true');
+    }
 
-    console.log('📄 Sending resume to comprehensive AI parser...');
+    console.log('📄 Sending resume to comprehensive AI parser with profile population...');
 
     const response = await fetch('http://localhost:5000/api/parse-resume', {
       method: 'POST',
@@ -306,10 +334,12 @@ class StorageService {
       title: result.data?.professional_title,
       experience_count: result.data?.experience?.length || 0,
       skills_count: result.data?.technical_skills?.length || 0,
-      method: result.method
+      method: result.method,
+      profile_populated: result.profile_populated || false,
+      profile_completeness: result.profile_completeness || 0
     });
 
-    return result.data;
+    return result;
   }
 
   /**
@@ -388,6 +418,88 @@ class StorageService {
     if (data.contact_info?.github) score += 2;
     
     return Math.min(score, maxScore);
+  }
+
+  /**
+   * Populate user profile automatically from parsed resume data
+   */
+  async populateProfileFromResume(resumeData, userId, existingProfile = null) {
+    try {
+      console.log('🤖 Calling AI matchmaker service for profile population...');
+      
+      const response = await fetch('http://localhost:5001/api/profile/populate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          resumeData: resumeData,
+          userId: userId,
+          existingProfile: existingProfile
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Profile population failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Profile population failed');
+      }
+
+      console.log('✅ Profile populated successfully!');
+      console.log('📊 Population results:', {
+        completeness: result.completeness,
+        fieldsPopulated: result.fieldsPopulated
+      });
+
+      return {
+        success: true,
+        profile: result.profile,
+        completeness: result.completeness,
+        fieldsPopulated: result.fieldsPopulated
+      };
+      
+    } catch (error) {
+      console.error('❌ Profile population error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Check profile completeness score
+   */
+  async checkProfileCompleteness(profile) {
+    try {
+      const response = await fetch('http://localhost:5001/api/profile/completeness', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ profile })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        return {
+          success: true,
+          completeness: result.completeness,
+          complete: result.complete
+        };
+      }
+      
+      return { success: false, completeness: 0 };
+      
+    } catch (error) {
+      console.error('Profile completeness check error:', error);
+      return { success: false, completeness: 0 };
+    }
   }
 
   /**
