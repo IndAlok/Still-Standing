@@ -15,6 +15,7 @@ import LandingPage from "./pages/LandingPage/landing";
 import InvitationManager from "./components/InvitationManager/InvitationManager";
 import Discover from "./pages/Discover/Discover";
 import UserProfilePage from "./pages/Profile/ProfilePage";
+import TeamBuilder from "./pages/TeamBuilder/TeamBuilder";
 
 function App() {
   return (
@@ -80,6 +81,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Settings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/team-builder"
+              element={
+                <ProtectedRoute>
+                  <TeamBuilder />
                 </ProtectedRoute>
               }
             />

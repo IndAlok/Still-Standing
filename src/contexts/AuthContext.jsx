@@ -11,7 +11,8 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider
 } from 'firebase/auth';
-import { auth, googleProvider } from '../config/firebase';
+import { auth, googleProvider, db } from '../config/firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { crewConnectService } from '../services/crewConnectService';
 
 const AuthContext = createContext();
