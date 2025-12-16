@@ -1,0 +1,9 @@
+{
+  "short_name": "CrewConnect",
+  "name": "CrewConnect - AI Team Collaboration",
+  "icons": [],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#7c3aed",
+  "background_color": "#0f172a"
+}
