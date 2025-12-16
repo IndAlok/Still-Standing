@@ -33,6 +33,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import storageService from "../../services/storageService";
 import cacheService from "../../services/cacheService";
+import sanitizeForFirestore from "../../utils/sanitizeForFirestore";
 import ProfilePictureUpload from "../../components/ProfilePictureUpload";
 
 // MODAL COMPONENTS (Moved outside the main component)
@@ -863,24 +864,24 @@ const UserProfilePage = () => {
           profileCompleteness: resumeData.profileCompleteness
         });
 
-        // Update user profile with comprehensive resume data
-        const profileUpdateData = {
+        // Update user profile with comprehensive resume data (sanitized to remove undefined values)
+        const profileUpdateData = sanitizeForFirestore({
           resume: {
-            fileName: resumeData.fileName,
-            resumeId: resumeData.id,
-            uploadDate: resumeData.uploadedAt,
-            parseStatus: resumeData.parseStatus,
-            parseMethod: resumeData.parseMethod,
-            parsedData: resumeData.parsedData,
-            insights: insights,
-            fileSize: resumeData.fileSize,
-            fileType: resumeData.fileType,
+            fileName: resumeData.fileName || null,
+            resumeId: resumeData.id || null,
+            uploadDate: resumeData.uploadedAt || new Date(),
+            parseStatus: resumeData.parseStatus || 'completed',
+            parseMethod: resumeData.parseMethod || 'ai',
+            parsedData: resumeData.parsedData || null,
+            insights: insights || null,
+            fileSize: resumeData.fileSize || null,
+            fileType: resumeData.fileType || null,
             storageMethod: 'comprehensive-ai-collection-with-profile',
             completenessScore: insights?.completenessScore || 0,
-            profilePopulated: resumeData.profilePopulated,
-            profileCompleteness: resumeData.profileCompleteness
+            profilePopulated: resumeData.profilePopulated || false,
+            profileCompleteness: resumeData.profileCompleteness || 0
           }
-        };
+        });
 
         // If profile was automatically populated, merge the populated data
         if (resumeData.profilePopulated && resumeData.profileData) {
