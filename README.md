@@ -4,7 +4,7 @@
 
 [![React](https://img.shields.io/badge/React-18.0-61dafb?style=for-the-badge&logo=react)](https://reactjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-V10-ffca28?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
-[![Gemini AI](https://img.shields.io/badge/Google%20Gemini-1.5%20Flash-4285f4?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
+[![Gemini AI](https://img.shields.io/badge/Google%20Gemini-2.0%20Flash-4285f4?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 [![Hackathon](https://img.shields.io/badge/🏆_Rank_1-CanYouHackIt_2025-gold?style=for-the-badge)](https://github.com/IndAlok/Still-Standing)
@@ -13,7 +13,7 @@
 
 > **🏆 Winner of CanYouHackIt 2025 Hackathon - Ranked #1**
 
-[View Demo](#) · [Report Bug](https://github.com/IndAlok/Still-Standing/issues) · [Request Feature](https://github.com/IndAlok/Still-Standing/issues)
+[View Demo](https://crewconnect-indalok.vercel.app) · [Report Bug](https://github.com/IndAlok/Still-Standing/issues) · [Request Feature](https://github.com/IndAlok/Still-Standing/issues)
 
 </div>
 
@@ -21,7 +21,7 @@
 
 ## Overview
 
-**CrewConnect** redefines how teams form and collaborate. Unlike traditional group chats, it leverages **Generative AI (Google Gemini 1.5 Flash)** to intelligently build teams, parse resumes, analyze skill gaps, and facilitate high-performance collaboration.
+**CrewConnect** redefines how teams form and collaborate. Unlike traditional group chats, it leverages **Generative AI (Google Gemini 2.0 Flash)** to intelligently build teams, parse resumes, analyze skill gaps, and facilitate high-performance collaboration.
 
 Designed as a **production-grade application**, it solves the "cold start" problem in project collaboration: *How do you find the right people with the right skills at the right time?*
 
@@ -62,7 +62,7 @@ Every team gets a dedicated AI assistant that:
 | **Frontend** | React 18, Create React App | High-performance SPA rendering with concurrent features. |
 | **Styling** | TailwindCSS + Framer Motion | Utility-first CSS for maintainability; hardware-accelerated animations. |
 | **Backend / DB** | Firebase (Firestore, Auth, Storage) | Serverless scalability; native real-time websocket capabilities. |
-| **AI Model** | Google Gemini 1.5 Flash | Low latency, high throughput token generation for real-time interactions. |
+| **AI Model** | Google Gemini 2.0 Flash | Low latency, high throughput token generation for real-time interactions. |
 | **State Mgmt** | React Context API | Global state for Auth and Notifications without Redux boilerplate. |
 
 ### Service Architecture
