@@ -268,44 +268,23 @@ const Dashboard = () => {
         setCurrentUserProfilePicture(newProfilePic);
       }
     }
-  }, [userProfile, currentUser, currentUserProfilePicture]);
+  }, [userProfile, currentUser]);
 
-  // Listen for profile picture updates in real-time (reduced frequency since AuthContext handles most updates)
   useEffect(() => {
     if (!currentUser?.uid) return;
-
-    const checkForProfileUpdates = () => {
-      storageService.getProfilePictureURL(currentUser.uid)
-        .then(latestProfilePicURL => {
-          if (latestProfilePicURL && latestProfilePicURL !== currentUserProfilePicture) {
-            setCurrentUserProfilePicture(latestProfilePicURL);
-            setUserData(prev => ({
-              ...prev,
-              photoURL: latestProfilePicURL
-            }));
-          }
-        })
-        .catch(error => {
-          // Silently fail to avoid console spam - profile picture updates are not critical
-        });
-    };
-
-    // Check for updates every 60 seconds (reduced from 30s since AuthContext handles immediate updates)
-    const interval = setInterval(checkForProfileUpdates, 60000);
     
-    return () => clearInterval(interval);
-  }, [currentUser?.uid, currentUserProfilePicture]);
-
-  // Update profile picture when userProfile changes (from AuthContext)
-  useEffect(() => {
-    if (userProfile?.profilePicture && userProfile.profilePicture !== currentUserProfilePicture) {
-      setCurrentUserProfilePicture(userProfile.profilePicture);
-      setUserData(prev => ({
-        ...prev,
-        photoURL: userProfile.profilePicture
-      }));
+    // Priority: userProfile.profilePicture (custom) > currentUser.photoURL (Google fallback)
+    const customPicture = userProfile?.profilePicture;
+    const googlePicture = currentUser?.photoURL;
+    
+    // Use custom picture if it exists and is not the Google URL
+    const pictureToUse = customPicture || googlePicture;
+    
+    if (pictureToUse && pictureToUse !== currentUserProfilePicture) {
+      setCurrentUserProfilePicture(pictureToUse);
+      setUserData(prev => prev ? { ...prev, photoURL: pictureToUse } : prev);
     }
-  }, [userProfile, currentUserProfilePicture]);
+  }, [userProfile?.profilePicture, currentUser?.photoURL, currentUser?.uid]);
 
   // Real-time invitation listener
   useEffect(() => {

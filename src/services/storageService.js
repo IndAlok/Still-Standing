@@ -300,26 +300,43 @@ class StorageService {
    */
   async parseResumeWithAI(file, userId, populateProfile = true) {
     console.log('📄 Parsing resume with Gemini AI...');
+    console.log('📁 File details:', { name: file.name, type: file.type, size: file.size });
     
     const { geminiService } = await import('./geminiService');
     
     let textContent = '';
+    let extractionMethod = 'unknown';
     
-    if (file.type === 'text/plain') {
-      textContent = await file.text();
-    } else if (file.type === 'application/pdf') {
-      textContent = await this.extractTextFromPdf(file);
-    } else if (file.type.includes('word') || file.type.includes('document')) {
-      textContent = await this.extractTextFromDoc(file);
-    } else {
-      textContent = await file.text();
+    try {
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        textContent = await file.text();
+        extractionMethod = 'text_direct';
+      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        textContent = await this.extractTextFromPdf(file);
+        extractionMethod = 'pdf_extraction';
+      } else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
+        textContent = await this.extractTextFromDoc(file);
+        extractionMethod = 'doc_extraction';
+      } else {
+        textContent = await file.text();
+        extractionMethod = 'fallback_text';
+      }
+    } catch (extractError) {
+      console.error('Primary extraction failed:', extractError);
+      textContent = await this.extractTextFallback(file);
+      extractionMethod = 'final_fallback';
     }
 
-    if (!textContent || textContent.length < 50) {
-      throw new Error('Could not extract text from resume. Please try a .txt or .pdf file.');
-    }
-
+    console.log('📝 Extraction method:', extractionMethod);
     console.log('📝 Extracted text length:', textContent.length);
+    console.log('📝 Text preview (first 200 chars):', textContent.substring(0, 200));
+
+    if (!textContent || textContent.length < 30) {
+      throw new Error(
+        `Could not extract sufficient text from resume (got ${textContent.length} chars). ` +
+        'For best results, please upload a .txt file with your resume content, or copy-paste your resume into a text file first.'
+      );
+    }
 
     const parseResult = await geminiService.parseResume(textContent, file.type);
     
@@ -361,77 +378,174 @@ class StorageService {
       success: true,
       data: normalizedData,
       method: 'gemini_client',
+      extractionMethod,
       profile_populated: false,
       profile_completeness: parseResult.confidence || 0
     };
   }
 
   async extractTextFromPdf(file) {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const text = await this.pdfToText(arrayBuffer);
-      return text;
-    } catch (error) {
-      console.warn('PDF extraction failed, trying raw text:', error);
-      return await file.text();
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    
+    let extractedTexts = [];
+    
+    // Strategy 1: Find text streams between BT and ET markers
+    const btEtText = this.extractBtEtText(bytes);
+    if (btEtText.length > 50) extractedTexts.push({ method: 'bt_et', text: btEtText });
+    
+    // Strategy 2: Extract text from parentheses (PDF string format)
+    const parenText = this.extractParenthesesText(bytes);
+    if (parenText.length > 50) extractedTexts.push({ method: 'paren', text: parenText });
+    
+    // Strategy 3: Extract hex strings (PDF hex format)
+    const hexText = this.extractHexText(bytes);
+    if (hexText.length > 50) extractedTexts.push({ method: 'hex', text: hexText });
+    
+    // Strategy 4: Raw printable ASCII extraction
+    const asciiText = this.extractAsciiText(bytes);
+    if (asciiText.length > 50) extractedTexts.push({ method: 'ascii', text: asciiText });
+
+    // Use the longest extracted text
+    if (extractedTexts.length === 0) {
+      console.warn('PDF extraction: No strategies produced usable text');
+      return '';
     }
+
+    extractedTexts.sort((a, b) => b.text.length - a.text.length);
+    console.log('PDF extraction results:', extractedTexts.map(t => ({ method: t.method, length: t.text.length })));
+    
+    return this.cleanExtractedText(extractedTexts[0].text);
   }
 
-  async pdfToText(arrayBuffer) {
-    const bytes = new Uint8Array(arrayBuffer);
-    let text = '';
-    let inText = false;
-    let textBuffer = '';
+  extractBtEtText(bytes) {
+    const str = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    const btEtRegex = /BT\s*([\s\S]*?)\s*ET/g;
+    let matches = [];
+    let match;
+    
+    while ((match = btEtRegex.exec(str)) !== null) {
+      const content = match[1];
+      // Extract Tj and TJ operators content
+      const tjRegex = /\((.*?)\)\s*Tj/g;
+      let tjMatch;
+      while ((tjMatch = tjRegex.exec(content)) !== null) {
+        matches.push(tjMatch[1]);
+      }
+    }
+    
+    return matches.join(' ');
+  }
 
+  extractParenthesesText(bytes) {
+    let text = '';
+    let inParen = 0;
+    let buffer = '';
+    
     for (let i = 0; i < bytes.length; i++) {
       const char = String.fromCharCode(bytes[i]);
       
-      if (char === '(' && !inText) {
-        inText = true;
-        textBuffer = '';
-      } else if (char === ')' && inText) {
-        inText = false;
-        text += textBuffer + ' ';
-      } else if (inText) {
-        if (bytes[i] >= 32 && bytes[i] <= 126) {
-          textBuffer += char;
+      if (char === '(' && (i === 0 || bytes[i-1] !== 92)) { // Not escaped
+        inParen++;
+        if (inParen === 1) buffer = '';
+      } else if (char === ')' && (i === 0 || bytes[i-1] !== 92)) {
+        inParen--;
+        if (inParen === 0 && buffer.length > 0) {
+          text += buffer + ' ';
         }
-      }
-    }
-
-    if (text.length < 100) {
-      let rawText = '';
-      for (let i = 0; i < bytes.length; i++) {
+      } else if (inParen > 0) {
         if (bytes[i] >= 32 && bytes[i] <= 126) {
-          rawText += String.fromCharCode(bytes[i]);
+          buffer += char;
         } else if (bytes[i] === 10 || bytes[i] === 13) {
-          rawText += '\n';
+          buffer += ' ';
         }
       }
-      text = rawText;
     }
+    
+    return text;
+  }
 
-    return text.replace(/\s+/g, ' ').trim();
+  extractHexText(bytes) {
+    const str = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    const hexRegex = /<([0-9A-Fa-f\s]+)>/g;
+    let text = '';
+    let match;
+    
+    while ((match = hexRegex.exec(str)) !== null) {
+      const hexStr = match[1].replace(/\s/g, '');
+      if (hexStr.length % 2 === 0) {
+        let decoded = '';
+        for (let i = 0; i < hexStr.length; i += 2) {
+          const charCode = parseInt(hexStr.substr(i, 2), 16);
+          if (charCode >= 32 && charCode <= 126) {
+            decoded += String.fromCharCode(charCode);
+          }
+        }
+        if (decoded.length > 2) text += decoded + ' ';
+      }
+    }
+    
+    return text;
+  }
+
+  extractAsciiText(bytes) {
+    let text = '';
+    let wordBuffer = '';
+    
+    for (let i = 0; i < bytes.length; i++) {
+      if (bytes[i] >= 32 && bytes[i] <= 126) {
+        wordBuffer += String.fromCharCode(bytes[i]);
+      } else {
+        if (wordBuffer.length >= 2) {
+          text += wordBuffer + ' ';
+        }
+        wordBuffer = '';
+      }
+    }
+    
+    return text;
+  }
+
+  cleanExtractedText(text) {
+    return text
+      .replace(/\\[nrt]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\n]/g, ' ')
+      .replace(/\s{3,}/g, ' ')
+      .trim();
   }
 
   async extractTextFromDoc(file) {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      let text = '';
-      
-      for (let i = 0; i < bytes.length; i++) {
-        if (bytes[i] >= 32 && bytes[i] <= 126) {
-          text += String.fromCharCode(bytes[i]);
-        } else if (bytes[i] === 10 || bytes[i] === 13) {
-          text += '\n';
-        }
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    
+    // For DOCX (ZIP format), try to find XML content
+    const str = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+    
+    // Check if it's DOCX (starts with PK, ZIP format)
+    if (bytes[0] === 0x50 && bytes[1] === 0x4B) {
+      // Extract text from XML content inside DOCX
+      const textRegex = /<w:t[^>]*>([^<]+)<\/w:t>/g;
+      let matches = [];
+      let match;
+      while ((match = textRegex.exec(str)) !== null) {
+        matches.push(match[1]);
       }
-      
-      return text.replace(/\s+/g, ' ').trim();
-    } catch (error) {
-      console.warn('DOC extraction failed:', error);
-      return await file.text();
+      if (matches.length > 0) {
+        return this.cleanExtractedText(matches.join(' '));
+      }
+    }
+    
+    // Fallback: extract printable ASCII
+    return this.extractAsciiText(bytes);
+  }
+
+  async extractTextFallback(file) {
+    try {
+      const text = await file.text();
+      return this.cleanExtractedText(text);
+    } catch {
+      return '';
     }
   }
 
