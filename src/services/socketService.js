@@ -20,15 +20,15 @@ class SocketService {
       });
 
       this.socket.on('connect', () => {
-        console.log('✅ Connected to Socket.IO server');
+        
       });
 
       this.socket.on('disconnect', (reason) => {
-        console.log('❌ Disconnected from Socket.IO server:', reason);
+        
       });
 
       this.socket.on('connect_error', (error) => {
-        console.error('❌ Socket.IO connection error:', error);
+        
         // Silently fail - Firestore real-time listeners will handle messaging
       });
     }
@@ -37,7 +37,7 @@ class SocketService {
       try {
         this.socket.connect();
       } catch (error) {
-        console.log('Socket.IO connection failed, using Firestore fallback:', error);
+        
       }
     }
   }
@@ -53,9 +53,9 @@ class SocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit('join_crew', crewId);
       this.currentRooms.add(crewId);
-      console.log(`📡 Joined crew room: ${crewId}`);
+      
     } else {
-      console.log('⚠️ Socket not connected, cannot join crew room');
+      
     }
   }
 
@@ -63,16 +63,16 @@ class SocketService {
     if (this.socket && this.socket.connected) {
       this.socket.emit('leave_crew', crewId);
       this.currentRooms.delete(crewId);
-      console.log(`📡 Left crew room: ${crewId}`);
+      
     }
   }
 
   sendMessage(messageData) {
     if (this.socket && this.socket.connected) {
       this.socket.emit('send_message', messageData);
-      console.log('📡 Message sent via Socket.IO:', messageData);
+      
     } else {
-      console.log('⚠️ Socket not connected, message will be sent via Firestore only');
+      
     }
   }
 

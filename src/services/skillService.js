@@ -55,7 +55,7 @@ class SkillService {
       
       return userSnap.data().skills || [];
     } catch (error) {
-      console.error('Error getting user skills:', error);
+      
       return [];
     }
   }
@@ -94,7 +94,7 @@ class SkillService {
 
       return { success: true, skill: newSkill };
     } catch (error) {
-      console.error('Error adding skill:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -116,7 +116,7 @@ class SkillService {
 
       return { success: true };
     } catch (error) {
-      console.error('Error removing skill:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -142,7 +142,7 @@ class SkillService {
 
       return { success: true };
     } catch (error) {
-      console.error('Error updating skill level:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -190,7 +190,7 @@ class SkillService {
 
       return { success: true };
     } catch (error) {
-      console.error('Error endorsing skill:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -207,7 +207,7 @@ class SkillService {
       const snapshot = await getDocs(endorsementsQuery);
       return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
-      console.error('Error getting endorsements:', error);
+      
       return [];
     }
   }
@@ -241,7 +241,7 @@ class SkillService {
 
       return matchingUsers;
     } catch (error) {
-      console.error('Error searching users by skills:', error);
+      
       return [];
     }
   }

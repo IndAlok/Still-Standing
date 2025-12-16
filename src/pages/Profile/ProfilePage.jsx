@@ -626,7 +626,7 @@ const UserProfilePage = () => {
         });
       }
     } catch (error) {
-      console.error('Error loading profile assets:', error);
+      
     } finally {
       setIsProfilePictureLoading(false);
     }
@@ -635,22 +635,22 @@ const UserProfilePage = () => {
   // Handle Google profile picture sync
   const handleGoogleProfileSync = useCallback(async () => {
     if (!currentUser?.photoURL || !currentUser?.uid) {
-      console.error('No Google photo or user authentication available');
+      
       alert('No Google profile picture available to sync');
       return;
     }
     
     try {
       setIsProfilePictureLoading(true);
-      console.log('Syncing Google profile picture...');
+      
       
       const syncResult = await storageService.syncGoogleProfilePicture(currentUser.uid);
-      console.log('Sync result:', syncResult);
+      
       
       if (syncResult.success && syncResult.url) {
         setProfilePictureURL(syncResult.url);
         await updateUserProfile({ profilePicture: syncResult.url });
-        console.log('Google profile picture synced successfully:', syncResult.url);
+        
         
         // Show success message
         alert('Google profile picture synced successfully!');
@@ -658,7 +658,7 @@ const UserProfilePage = () => {
         throw new Error('Sync failed: No URL returned');
       }
     } catch (error) {
-      console.error('Error syncing Google profile picture:', error);
+      
       alert(`Failed to sync Google profile picture: ${error.message}`);
     } finally {
       setIsProfilePictureLoading(false);
@@ -668,16 +668,16 @@ const UserProfilePage = () => {
   // Handle profile picture upload
   const handleProfilePictureUpload = useCallback(async (file) => {
     if (!currentUser?.uid) {
-      console.error('No user authentication available for upload');
+      
       return;
     }
     
     try {
       setIsProfilePictureLoading(true);
-      console.log('Uploading profile picture...', file);
+      
       
       const uploadResult = await storageService.uploadProfilePicture(file, userProfile.uid);
-      console.log('Upload result:', uploadResult);
+      
       
       if (uploadResult.success && uploadResult.url) {
         // Update local state immediately
@@ -697,7 +697,7 @@ const UserProfilePage = () => {
         const cacheKey = `profile-pic-${userProfile.uid}`;
         cacheService.set(cacheKey, uploadResult.url, 300);
         
-        console.log('Profile picture uploaded successfully:', uploadResult.url);
+        
         
         // Show success message
         alert('Profile picture updated successfully!');
@@ -712,7 +712,7 @@ const UserProfilePage = () => {
         throw new Error('Upload failed: No URL returned');
       }
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
+      
       alert(`Failed to upload profile picture: ${error.message}`);
     } finally {
       setIsProfilePictureLoading(false);
@@ -725,7 +725,7 @@ const UserProfilePage = () => {
       await logout();
       navigate('/login');
     } catch (error) {
-      console.error('Error during logout:', error);
+      
       navigate('/login'); // Force navigation even if logout fails
     }
   }, [logout, navigate]);
@@ -776,14 +776,14 @@ const UserProfilePage = () => {
           // Check if update was successful
           // Update local state immediately for better UX
           setCurrentProfile((prev) => ({ ...prev, ...editForm }));
-          console.log("Profile updated successfully");
+          
         } else {
-          console.error("Failed to update profile");
+          
           // You could show an error message here
         }
       }
     } catch (error) {
-      console.error("Error updating profile:", error);
+      
     } finally {
       setIsEditing(false);
       setEditForm({});
@@ -831,18 +831,18 @@ const UserProfilePage = () => {
 
   const uploadResumeFile = useCallback(async (file) => {
     if (!currentUser?.uid) {
-      console.error('No user authentication available for upload');
+      
       return;
     }
     
     try {
       setIsUploading(true);
       setUploadProgress(0);
-      console.log('Uploading resume...', file);
+      
 
       // Upload to Firebase Storage with comprehensive AI parsing
       const result = await storageService.uploadResume(file, currentUser.uid);
-      console.log('Resume upload result:', result);
+      
 
       if (result.success && result.resumeData) {
         const resumeData = result.resumeData;
@@ -884,7 +884,7 @@ const UserProfilePage = () => {
 
         // If profile was automatically populated, merge the populated data
         if (resumeData.profilePopulated && resumeData.profileData) {
-          console.log('🎉 Merging auto-populated profile data...');
+          
           
           // Merge populated profile data with current profile
           const populatedProfile = resumeData.profileData;
@@ -927,12 +927,12 @@ const UserProfilePage = () => {
           alert(successMessage);
         }
 
-        console.log('✅ Resume uploaded and processed successfully');
+        
       } else {
         throw new Error('Upload failed: ' + (result.parseError || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error uploading resume:', error);
+      
       alert(`Failed to upload resume: ${error.message}`);
     } finally {
       setIsUploading(false);
@@ -959,11 +959,11 @@ const UserProfilePage = () => {
             ...prev,
             resume: null,
           }));
-          console.log("Resume removed from profile successfully");
+          
         }
       }
     } catch (error) {
-      console.error("Error removing resume from profile:", error);
+      
     }
   };
 

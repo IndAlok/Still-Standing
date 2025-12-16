@@ -22,14 +22,14 @@ class ProfileService {
   // Upload and parse resume with backend integration
   async uploadAndParseResume(file, userId) {
     try {
-      console.log('📄 Starting resume upload and parsing...');
+      
 
       // Upload file to Firebase Storage
       const storageReference = storageRef(storage, `resumes/${userId}/${file.name}`);
       const snapshot = await uploadBytes(storageReference, file);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
-      console.log('📄 Resume uploaded to storage:', downloadURL);
+      
 
       // Create FormData to send to Python backend
       const formData = new FormData();
@@ -47,7 +47,7 @@ class ProfileService {
       }
 
       const parsedData = await response.json();
-      console.log('📄 Resume parsed successfully:', parsedData);
+      
 
       // Update user profile with parsed resume data
       const resumeData = {
@@ -76,7 +76,7 @@ class ProfileService {
       };
 
     } catch (error) {
-      console.error('❌ Resume upload/parsing failed:', error);
+      
       return {
         success: false,
         error: error.message
@@ -97,9 +97,9 @@ class ProfileService {
         try {
           const storageReference = storageRef(storage, currentProfile.resume.downloadURL);
           await deleteObject(storageReference);
-          console.log('📄 Resume deleted from storage');
+          
         } catch (storageError) {
-          console.warn('⚠️ Could not delete resume from storage:', storageError);
+          
         }
       }
 
@@ -113,7 +113,7 @@ class ProfileService {
 
       return { success: true };
     } catch (error) {
-      console.error('❌ Failed to remove resume:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -134,10 +134,10 @@ class ProfileService {
       // Invalidate cache
       cacheService.invalidatePrefix(`${this.CACHE_PREFIX}_${userId}`);
 
-      console.log('✅ Profile updated successfully');
+      
       return { success: true };
     } catch (error) {
-      console.error('❌ Failed to update profile:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -149,7 +149,7 @@ class ProfileService {
     // Try cache first
     const cachedProfile = cacheService.get(cacheKey);
     if (cachedProfile) {
-      console.log('📋 Profile loaded from cache');
+      
       return cachedProfile;
     }
 
@@ -163,13 +163,13 @@ class ProfileService {
         // Cache the result
         cacheService.set(cacheKey, profileData, this.CACHE_TTL);
         
-        console.log('📋 Profile loaded from database');
+        
         return profileData;
       }
       
       return null;
     } catch (error) {
-      console.error('❌ Failed to get user profile:', error);
+      
       return null;
     }
   }
@@ -189,7 +189,7 @@ class ProfileService {
 
       return { success: true };
     } catch (error) {
-      console.error('❌ Failed to update team preferences:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -197,7 +197,7 @@ class ProfileService {
   // Upload profile picture
   async uploadProfilePicture(userId, file) {
     try {
-      console.log('🖼️ Uploading profile picture...');
+      
 
       const storageReference = storageRef(storage, `profile-pictures/${userId}/${file.name}`);
       const snapshot = await uploadBytes(storageReference, file);
@@ -208,10 +208,10 @@ class ProfileService {
         profilePicture: downloadURL
       });
 
-      console.log('🖼️ Profile picture uploaded successfully');
+      
       return { success: true, downloadURL };
     } catch (error) {
-      console.error('❌ Failed to upload profile picture:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -241,7 +241,7 @@ class ProfileService {
 
       return stats;
     } catch (error) {
-      console.error('❌ Failed to get user stats:', error);
+      
       return null;
     }
   }
@@ -251,7 +251,7 @@ class ProfileService {
     try {
       // Implement user search with filters
       // This would integrate with your search backend
-      console.log('🔍 Searching users:', query, filters);
+      
       
       // Placeholder implementation
       return {
@@ -259,7 +259,7 @@ class ProfileService {
         total: 0
       };
     } catch (error) {
-      console.error('❌ User search failed:', error);
+      
       return { users: [], total: 0 };
     }
   }

@@ -51,16 +51,16 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchDashboardData = async () => {
-      console.log('Dashboard useEffect triggered, currentUser:', currentUser?.uid);
+      
       
       if (!currentUser?.uid) {
-        console.log('No current user, setting loading to false');
+        
         setLoading(false);
         return;
       }
 
       try {
-        console.log("Setting loading to true and fetching dashboard data");
+        
         setLoading(true);
 
         // Set basic user data immediately
@@ -82,7 +82,7 @@ const Dashboard = () => {
         }
 
         setUserData(basicUserData);
-        console.log("Basic user data set:", basicUserData);
+        
 
         // Load current user's profile picture from storage service (non-blocking, only if no profile picture yet)
         if (!basicUserData.photoURL) {
@@ -98,7 +98,7 @@ const Dashboard = () => {
               }
             })
             .catch(error => {
-              console.warn('Failed to load profile picture:', error);
+              
               // Keep using the Google photo URL or default - don't block dashboard loading
             });
         }
@@ -106,7 +106,7 @@ const Dashboard = () => {
         // Fetch user's groups
         const userGroups = await crewConnectService.getUserCrews();
         setUserGroups(userGroups);
-        console.log("User groups fetched:", userGroups);
+        
 
         // Fetch pending invitations and recent messages in parallel
         const [invitationsResult, ...messageResults] = await Promise.allSettled([
@@ -120,9 +120,9 @@ const Dashboard = () => {
         if (invitationsResult.status === 'fulfilled') {
           const pendingCount = invitationsResult.value.length;
           setPendingInvitations(pendingCount);
-          console.log('Pending invitations count:', pendingCount);
+          
         } else {
-          console.warn('Failed to fetch invitations:', invitationsResult.reason);
+          
           setPendingInvitations(0);
         }
 
@@ -166,7 +166,7 @@ const Dashboard = () => {
           .slice(0, 10);
 
         setRecentMessages(sortedMessages);
-        console.log("Recent messages fetched:", sortedMessages);
+        
 
         // Calculate real stats
         const totalMessages = recentMessages.length;
@@ -212,7 +212,7 @@ const Dashboard = () => {
             }).length;
             recentActivity += recentGroupActivity;
           } catch (error) {
-            console.warn(`Failed to fetch data for group ${group.id}:`, error);
+            
           }
         }
 
@@ -234,7 +234,7 @@ const Dashboard = () => {
           recentActivity: recentActivity,
         });
       } catch (error) {
-        console.error("Error in dashboard data fetch:", error);
+        
         // Set fallback data on error
         setUserGroups([]);
         setRecentMessages([]);
@@ -245,7 +245,7 @@ const Dashboard = () => {
           recentActivity: 0,
         });
       } finally {
-        console.log("Setting loading to false");
+        
         setLoading(false);
       }
     };
@@ -290,7 +290,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (!currentUser?.uid) return;
 
-    console.log('Setting up invitation listener for user:', currentUser.uid);
+    
     
     // Simple query without orderBy to avoid composite index requirement
     const invitationsQuery = query(
@@ -299,36 +299,36 @@ const Dashboard = () => {
     );
 
     const unsubscribe = onSnapshot(invitationsQuery, (snapshot) => {
-      console.log('🔔 DEBUG: Real-time listener triggered, total docs:', snapshot.size);
+      
       
       // Filter for pending status in memory to avoid composite index
       const pendingInvitations = snapshot.docs.filter(doc => {
         const data = doc.data();
-        console.log('🔔 DEBUG: Document:', { id: doc.id, status: data.status, invitedUserId: data.invitedUserId });
+        
         return data.status === 'pending';
       });
       
       const pendingCount = pendingInvitations.length;
-      console.log('🔔 DEBUG: Pending invitations after filtering:', pendingCount);
+      
       setPendingInvitations(pendingCount);
     }, (error) => {
-      console.warn('Error in invitation listener:', error);
+      
     });
 
     return () => {
-      console.log("Cleaning up invitation listener");
+      
       unsubscribe();
     };
   }, [currentUser?.uid]);
 
   const handleLogout = async () => {
     try {
-      console.log("Logging out...");
+      
       await logout();
-      console.log("Logout successful, navigating to login");
+      
       navigate("/login", { replace: true });
     } catch (error) {
-      console.error("Failed to logout:", error);
+      
       // Force navigation even if logout fails
       navigate("/login", { replace: true });
     }

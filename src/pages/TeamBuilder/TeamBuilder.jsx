@@ -65,7 +65,7 @@ const TeamBuilder = () => {
       setMatches(matchResults);
       setStep(2);
     } catch (error) {
-      console.error('Error finding matches:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ const TeamBuilder = () => {
       setSkillGapAnalysis(analysis);
       setStep(3);
     } catch (error) {
-      console.error('Error analyzing team:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -108,7 +108,7 @@ const TeamBuilder = () => {
       
       setSuggestions(result);
     } catch (error) {
-      console.error('Error getting AI suggestions:', error);
+      
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,7 @@ const TeamBuilder = () => {
 
       navigate(`/chat/${crew.id}`);
     } catch (error) {
-      console.error('Error creating team:', error);
+      
     } finally {
       setLoading(false);
     }

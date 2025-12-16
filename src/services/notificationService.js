@@ -50,7 +50,7 @@ class NotificationService {
       
       return { id: docRef.id, ...notification };
     } catch (error) {
-      console.error('Error creating notification:', error);
+      
       throw error;
     }
   }
@@ -82,7 +82,7 @@ class NotificationService {
         priority: 'high'
       });
     } catch (error) {
-      console.error('Error sending group invite notification:', error);
+      
       throw error;
     }
   }
@@ -114,7 +114,7 @@ class NotificationService {
         priority: 'medium'
       });
     } catch (error) {
-      console.error('Error sending skill match notification:', error);
+      
       throw error;
     }
   }
@@ -159,7 +159,7 @@ class NotificationService {
 
       await Promise.all(promises);
     } catch (error) {
-      console.error('Error sending new message notifications:', error);
+      
     }
   }
 
@@ -201,7 +201,7 @@ class NotificationService {
 
       await Promise.all(promises);
     } catch (error) {
-      console.error('Error sending member joined notifications:', error);
+      
     }
   }
 
@@ -233,7 +233,7 @@ class NotificationService {
         ...doc.data()
       }));
     } catch (error) {
-      console.error('Error getting user notifications:', error);
+      
       throw error;
     }
   }
@@ -251,7 +251,7 @@ class NotificationService {
       const snapshot = await getDocs(q);
       return snapshot.size;
     } catch (error) {
-      console.error('Error getting unread count:', error);
+      
       return 0;
     }
   }
@@ -264,7 +264,7 @@ class NotificationService {
         readAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      
       throw error;
     }
   }
@@ -288,7 +288,7 @@ class NotificationService {
       
       await Promise.all(promises);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      
       throw error;
     }
   }
@@ -301,7 +301,7 @@ class NotificationService {
         deletedAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      
       throw error;
     }
   }

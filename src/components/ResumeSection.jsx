@@ -67,11 +67,11 @@ const ResumeSection = ({
             setResumes([resumeData]);
           }
         } catch (storageError) {
-          console.log('No resume found in storage');
+          
         }
       }
     } catch (error) {
-      console.error('Error loading resumes:', error);
+      
       setError('Failed to load resumes');
     } finally {
       setLoading(false);
@@ -163,7 +163,7 @@ const ResumeSection = ({
         setTimeout(() => setProcessingStatus(''), 3000);
       }
     } catch (err) {
-      console.error('Resume upload error:', err);
+      
       setError(err.message || 'Failed to upload resume. Please try again.');
       setProcessingStatus('');
     } finally {
@@ -186,7 +186,7 @@ const ResumeSection = ({
         onResumeUpdate?.(null);
       }
     } catch (error) {
-      console.error('Delete resume error:', error);
+      
       setError('Failed to delete resume');
     }
   }, [loadResumes, activeResume, onResumeUpdate]);

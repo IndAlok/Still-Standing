@@ -112,7 +112,7 @@ const InvitationManager = () => {
       const groups = await crewConnectService.getUserCrews();
       setUserGroups(groups);
     } catch (error) {
-      console.error("Error fetching user groups:", error);
+      
     }
   };
 
@@ -142,13 +142,13 @@ const InvitationManager = () => {
           );
         } catch (error) {
           // User might not have permission for this group
-          console.log(`No permission to view requests for ${group.name}`);
+          
         }
       }
 
       setJoinRequests(allRequests);
     } catch (error) {
-      console.error("Error fetching invitations and requests:", error);
+      
     } finally {
       setLoading(false);
     }
@@ -156,13 +156,13 @@ const InvitationManager = () => {
 
   const handleInvitation = async (invitationId, action) => {
     if (processingInvitation === invitationId) {
-      console.log("Already processing invitation", invitationId);
+      
       return; // Prevent double-clicking
     }
 
     try {
       setProcessingInvitation(invitationId);
-      console.log("Handling invitation:", invitationId, action);
+      
 
       await crewConnectService.handleInvitation(invitationId, action);
 
@@ -180,7 +180,7 @@ const InvitationManager = () => {
         showToast("Invitation declined successfully", "info");
       }
     } catch (error) {
-      console.error("Error handling invitation:", error);
+      
       showToast(
         error.message || "Failed to process invitation. Please try again.",
         "error"
@@ -207,7 +207,7 @@ const InvitationManager = () => {
         showToast("Join request rejected", "info");
       }
     } catch (error) {
-      console.error("Error handling join request:", error);
+      
       showToast(
         error.message || "Failed to process join request. Please try again.",
         "error"

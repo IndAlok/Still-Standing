@@ -36,7 +36,7 @@ const Discover = () => {
       const groupIds = new Set(userGroups.map(group => group.id));
       setJoinedGroups(groupIds);
     } catch (error) {
-      console.error('Error fetching user memberships:', error);
+      
     }
   };
 
@@ -47,7 +47,7 @@ const Discover = () => {
       const groups = await crewConnectService.getPublicCrews();
       setPublicGroups(groups);
     } catch (error) {
-      console.error('Error fetching public groups:', error);
+      
       setPublicGroups([]);
     } finally {
       setLoading(false);
@@ -67,7 +67,7 @@ const Discover = () => {
         setJoinedGroups(prev => new Set([...prev, groupId]));
       }
     } catch (error) {
-      console.error('Error sending join request:', error);
+      
       alert(error.message);
       setPendingRequests(prev => {
         const newSet = new Set(prev);

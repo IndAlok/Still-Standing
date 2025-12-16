@@ -102,7 +102,7 @@ const ProfilePage = () => {
         setProfilePictureURL(profilePicURL);
 
       } catch (error) {
-        console.error('Failed to load profile:', error);
+        
         setError('Failed to load profile data');
         setProfile(userProfile); // Fallback to auth context
       } finally {
@@ -132,12 +132,12 @@ const ProfilePage = () => {
       const result = await profileService.updateUserProfile(currentUser.uid, updates);
       
       if (result.success) {
-        console.log('✅ Profile updated successfully');
+        
       } else {
         throw new Error(result.error || 'Update failed');
       }
     } catch (error) {
-      console.error('❌ Profile update failed:', error);
+      
       setError(error.message);
       
       // Revert optimistic update on error
@@ -170,9 +170,9 @@ const ProfilePage = () => {
         })
       }));
       
-      console.log('✅ Resume uploaded and profile updated');
+      
     } catch (error) {
-      console.error('❌ Resume update failed:', error);
+      
       setError(error.message);
     }
   }, [currentUser?.uid]);
@@ -186,7 +186,7 @@ const ProfilePage = () => {
       try {
         await handleProfileUpdate({ profilePicture: newURL });
       } catch (error) {
-        console.error('Failed to update profile picture in database:', error);
+        
       }
     }
   }, [currentUser?.uid, handleProfileUpdate]);
@@ -201,12 +201,12 @@ const ProfilePage = () => {
       if (result.success) {
         setTeamPreferences(preferences);
         setProfile(prev => ({ ...prev, teamPreferences: preferences }));
-        console.log('✅ Team preferences updated');
+        
       } else {
         throw new Error(result.error || 'Update failed');
       }
     } catch (error) {
-      console.error('❌ Team preferences update failed:', error);
+      
       setError(error.message);
     }
   }, [currentUser?.uid]);

@@ -31,7 +31,7 @@ export class GroupsService {
       
       return { id: docRef.id, ...groupData };
     } catch (error) {
-      console.error('Error creating group:', error);
+      
       throw error;
     }
   }
@@ -47,7 +47,7 @@ export class GroupsService {
         throw new Error('Group not found');
       }
     } catch (error) {
-      console.error('Error getting group:', error);
+      
       throw error;
     }
   }
@@ -72,7 +72,7 @@ export class GroupsService {
       
       return groups;
     } catch (error) {
-      console.error('Error getting user groups:', error);
+      
       throw error;
     }
   }
@@ -97,7 +97,7 @@ export class GroupsService {
       
       return groups;
     } catch (error) {
-      console.error('Error getting public groups:', error);
+      
       throw error;
     }
   }
@@ -114,7 +114,7 @@ export class GroupsService {
       
       return true;
     } catch (error) {
-      console.error('Error joining group:', error);
+      
       throw error;
     }
   }
@@ -136,7 +136,7 @@ export class GroupsService {
       
       return true;
     } catch (error) {
-      console.error('Error leaving group:', error);
+      
       throw error;
     }
   }
@@ -175,7 +175,7 @@ export class MessagesService {
       
       return { id: docRef.id, ...messageData };
     } catch (error) {
-      console.error('Error sending message:', error);
+      
       throw error;
     }
   }
@@ -197,7 +197,7 @@ export class MessagesService {
       
       return messages.reverse(); // Reverse to show oldest first
     } catch (error) {
-      console.error('Error getting messages:', error);
+      
       throw error;
     }
   }
@@ -212,7 +212,7 @@ export class MessagesService {
       
       return true;
     } catch (error) {
-      console.error('Error updating message:', error);
+      
       throw error;
     }
   }
@@ -224,7 +224,7 @@ export class MessagesService {
       
       return true;
     } catch (error) {
-      console.error('Error deleting message:', error);
+      
       throw error;
     }
   }
@@ -273,7 +273,7 @@ export class UsersService {
       
       return userData;
     } catch (error) {
-      console.error('Error creating/updating user:', error);
+      
       throw error;
     }
   }
@@ -289,7 +289,7 @@ export class UsersService {
         throw new Error('User not found');
       }
     } catch (error) {
-      console.error('Error getting user data:', error);
+      
       throw error;
     }
   }
@@ -304,7 +304,7 @@ export class UsersService {
       
       return true;
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      
       throw error;
     }
   }
@@ -320,7 +320,7 @@ export class UsersService {
       
       return true;
     } catch (error) {
-      console.error('Error updating user status:', error);
+      
       throw error;
     }
   }
@@ -355,7 +355,7 @@ export class UsersService {
         throw new Error('Group not found');
       }
     } catch (error) {
-      console.error('Error getting group members:', error);
+      
       throw error;
     }
   }

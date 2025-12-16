@@ -49,7 +49,7 @@ const TeamMemberProfile = ({ memberId, onClose, isOpen }) => {
           const profilePicture = await storageService.getProfilePictureURL(memberId);
           setProfilePictureURL(profilePicture || profile.profilePicture);
         } catch (profilePictureError) {
-          console.log('No profile picture found for member:', memberId);
+          
         }
 
         // Load resume if available
@@ -67,13 +67,13 @@ const TeamMemberProfile = ({ memberId, onClose, isOpen }) => {
             });
           }
         } catch (resumeError) {
-          console.log('No resume found for member:', memberId);
+          
         }
       } else {
         setError('Profile not found');
       }
     } catch (err) {
-      console.error('Error loading member profile:', err);
+      
       setError('Failed to load profile');
     } finally {
       setLoading(false);
@@ -92,7 +92,7 @@ const TeamMemberProfile = ({ memberId, onClose, isOpen }) => {
         link.click();
         document.body.removeChild(link);
       } catch (error) {
-        console.error('Error downloading resume:', error);
+        
       }
     }
   };

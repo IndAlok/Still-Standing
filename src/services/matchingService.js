@@ -85,7 +85,7 @@ class MatchingService {
         .sort((a, b) => b.score - a.score)
         .slice(0, maxResults);
     } catch (error) {
-      console.error('Error finding matches:', error);
+      
       return [];
     }
   }
@@ -182,7 +182,7 @@ class MatchingService {
 
       return result.data;
     } catch (error) {
-      console.error('Error suggesting optimal team:', error);
+      
       return this.fallbackTeamSuggestion([], projectRequirements, teamSize);
     }
   }

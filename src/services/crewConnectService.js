@@ -49,7 +49,7 @@ class CrewConnectService {
       await addDoc(collection(db, 'users'), userProfile);
       return userProfile;
     } catch (error) {
-      console.error('Error creating user profile:', error);
+      
       throw error;
     }
   }
@@ -68,7 +68,7 @@ class CrewConnectService {
       }
       return null;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      
       // Return null instead of throwing to prevent app crashes
       return null;
     }
@@ -93,7 +93,7 @@ class CrewConnectService {
       }
       throw new Error('User profile not found');
     } catch (error) {
-      console.error('Error updating user profile:', error);
+      
       throw error;
     }
   }
@@ -145,7 +145,7 @@ class CrewConnectService {
       
       return { id: crewRef.id, ...crewData };
     } catch (error) {
-      console.error('Error creating crew:', error);
+      
       throw error;
     }
   }
@@ -181,7 +181,7 @@ class CrewConnectService {
       
       return crews;
     } catch (error) {
-      console.error('Error getting public crews:', error);
+      
       throw error;
     }
   }
@@ -194,7 +194,7 @@ class CrewConnectService {
       const cacheKey = `user_crews_${user.uid}`;
       const cached = cacheService.get(cacheKey);
       if (cached) {
-        console.log('🎯 Using cached user crews');
+        
         return cached;
       }
 
@@ -218,7 +218,7 @@ class CrewConnectService {
         
         // Skip if we've already processed this crew
         if (seenCrewIds.has(crewId)) {
-          console.warn(`Duplicate membership found for crew ${crewId}, cleaning up...`);
+          
           // Clean up duplicate membership (async, doesn't block UI)
           this.cleanupDuplicateMembership(crewId, user.uid).catch(console.error);
           continue;
@@ -254,11 +254,11 @@ class CrewConnectService {
       
       // Cache for 2 minutes
       cacheService.set(cacheKey, crews, 120000);
-      console.log('🎯 Cached user crews');
+      
       
       return crews;
     } catch (error) {
-      console.error('Error getting user crews:', error);
+      
       throw error;
     }
   }
@@ -266,7 +266,7 @@ class CrewConnectService {
   // Clean up duplicate memberships
   async cleanupDuplicateMembership(crewId, userId) {
     try {
-      console.log('🧹 Cleaning up duplicate memberships for crew:', crewId, 'user:', userId);
+      
       
       const membershipQuery = query(
         collection(db, 'memberships'),
@@ -278,21 +278,21 @@ class CrewConnectService {
       const snapshot = await getDocs(membershipQuery);
       
       if (snapshot.size <= 1) {
-        console.log('🧹 No duplicates found');
+        
         return;
       }
       
-      console.log('🧹 Found', snapshot.size, 'duplicate memberships, keeping the first one');
+      
       
       // Keep the first (oldest) membership, delete the rest
       const docs = snapshot.docs;
       for (let i = 1; i < docs.length; i++) {
         await deleteDoc(docs[i].ref);
-        console.log('🧹 Deleted duplicate membership:', docs[i].id);
+        
       }
       
     } catch (error) {
-      console.error('Error cleaning up duplicate memberships:', error);
+      
     }
   }
 
@@ -358,11 +358,11 @@ class CrewConnectService {
       
       // Clear crew caches since membership changed
       cacheService.invalidate(`user_crews_${user.uid}`);
-      console.log('🎯 Cleared crew cache for user', user.uid);
+      
       
       return { id: membershipRef.id, ...membershipData };
     } catch (error) {
-      console.error('Error joining crew:', error);
+      
       throw error;
     }
   }
@@ -391,7 +391,7 @@ class CrewConnectService {
       
       // Invalidate message caches for this crew
       cacheService.invalidate(`crew_messages_${crewId}`);
-      console.log('🎯 Invalidated message cache for crew', crewId);
+      
       
       return {
         id: messageRef.id,
@@ -404,7 +404,7 @@ class CrewConnectService {
         }
       };
     } catch (error) {
-      console.error('Error sending message:', error);
+      
       throw error;
     }
   }
@@ -414,7 +414,7 @@ class CrewConnectService {
       const cacheKey = `crew_messages_${crewId}_${messageLimit}`;
       const cached = cacheService.get(cacheKey);
       if (cached) {
-        console.log('🎯 Using cached crew messages for', crewId);
+        
         return cached;
       }
 
@@ -451,11 +451,11 @@ class CrewConnectService {
       
       // Cache for 30 seconds (messages update frequently)
       cacheService.set(cacheKey, result, 30000);
-      console.log('🎯 Cached crew messages for', crewId);
+      
       
       return result;
     } catch (error) {
-      console.error('Error getting crew messages:', error);
+      
       throw error;
     }
   }
@@ -487,7 +487,7 @@ class CrewConnectService {
       
       return members;
     } catch (error) {
-      console.error('Error getting crew members:', error);
+      
       throw error;
     }
   }
@@ -552,7 +552,7 @@ class CrewConnectService {
               crewData.createdByUser = creatorSnapshot.docs[0].data();
             }
           } catch (error) {
-            console.error('Error fetching creator info:', error);
+            
           }
         }
         
@@ -566,7 +566,7 @@ class CrewConnectService {
           const membershipSnapshot = await getDocs(membershipQuery);
           crewData.memberCount = membershipSnapshot.docs.length;
         } catch (error) {
-          console.error('Error counting members:', error);
+          
           crewData.memberCount = 0;
         }
         
@@ -609,7 +609,7 @@ class CrewConnectService {
           });
           recentActivity += recentMessages.length;
         } catch (error) {
-          console.error(`Error calculating stats for crew ${crew.id}:`, error);
+          
         }
       }
 
@@ -620,7 +620,7 @@ class CrewConnectService {
         recentActivity
       };
     } catch (error) {
-      console.error('Error getting user stats:', error);
+      
       return {
         totalGroups: 0,
         totalMessages: 0,
@@ -641,7 +641,7 @@ class CrewConnectService {
         lastActiveAt: serverTimestamp()
       });
     } catch (error) {
-      console.error('Error updating online status:', error);
+      
     }
   }
 
@@ -675,7 +675,7 @@ class CrewConnectService {
 
       return true;
     } catch (error) {
-      console.error('Error leaving crew:', error);
+      
       throw error;
     }
   }
@@ -689,13 +689,13 @@ class CrewConnectService {
       // Refresh auth token to ensure it's not expired
       try {
         await user.getIdToken(true); // Force refresh
-        console.log('🗑️ DEBUG: Auth token refreshed successfully');
+        
       } catch (tokenError) {
-        console.error('🗑️ ERROR: Failed to refresh auth token:', tokenError);
+        
         throw new Error('Authentication token expired. Please sign out and sign in again.');
       }
 
-      console.log('🗑️ DEBUG: Attempting to delete crew', crewId, 'by user', user.uid);
+      
 
       // Check if user is the creator
       const crewDoc = await getDoc(doc(db, 'crews', crewId));
@@ -720,21 +720,21 @@ class CrewConnectService {
       });
 
       // Additional UID debugging
-      console.log('🗑️ DEBUG: UID comparison details:');
-      console.log('🗑️ DEBUG: crewData.createdBy type:', typeof crewData.createdBy);
-      console.log('🗑️ DEBUG: crewData.createdBy value:', crewData.createdBy);
-      console.log('🗑️ DEBUG: crewData.createdBy length:', crewData.createdBy?.length);
-      console.log('🗑️ DEBUG: user.uid type:', typeof user.uid);
-      console.log('🗑️ DEBUG: user.uid value:', user.uid);
-      console.log('🗑️ DEBUG: user.uid length:', user.uid?.length);
-      console.log('🗑️ DEBUG: String comparison:', String(crewData.createdBy) === String(user.uid));
-      console.log('🗑️ DEBUG: Trimmed comparison:', String(crewData.createdBy).trim() === String(user.uid).trim());
+      
+      
+      
+      
+      
+      
+      
+      
+      
 
       // Use more robust UID comparison
       const isCreator = String(crewData.createdBy).trim() === String(user.uid).trim();
       
       if (!isCreator) {
-        console.log('🗑️ DEBUG: Creator check failed, checking admin role...');
+        
         
         // Also check membership role as backup
         const membershipCheckQuery = query(
@@ -747,23 +747,23 @@ class CrewConnectService {
         
         if (!membershipCheckSnapshot.empty) {
           const membershipData = membershipCheckSnapshot.docs[0].data();
-          console.log('🗑️ DEBUG: User membership role:', membershipData.role);
+          
           
           // Allow deletion if user is admin
           if (membershipData.role === 'admin') {
-            console.log('🗑️ DEBUG: User is admin, allowing deletion');
+            
           } else {
             throw new Error(`Insufficient permissions: You are a ${membershipData.role}, but only admins or creators can delete groups. CreatedBy: ${crewData.createdBy}, Your UID: ${user.uid}`);
           }
         } else {
-          console.log('🗑️ DEBUG: No active membership found');
+          
           throw new Error(`Access denied: No active membership found. You might not be a member of this group. CreatedBy: ${crewData.createdBy}, Your UID: ${user.uid}`);
         }
       } else {
-        console.log('🗑️ DEBUG: Creator check passed');
+        
       }
 
-      console.log('🗑️ DEBUG: Permission checks passed, proceeding with deletion');
+      
 
       // Delete all associated data using batch
       const batch = writeBatch(db);
@@ -793,18 +793,18 @@ class CrewConnectService {
 
       await batch.commit();
       
-      console.log('🗑️ DEBUG: Crew deletion batch committed successfully');
+      
       
       // Clear all relevant caches
       cacheService.invalidate(`user_crews_${user.uid}`);
       cacheService.invalidate(`crew_messages_${crewId}`);
-      console.log('🎯 Cleared caches after crew deletion');
+      
       
       return { success: true };
     } catch (error) {
-      console.error('🗑️ ERROR: Failed to delete crew:', error);
-      console.error('🗑️ ERROR: Error code:', error.code);
-      console.error('🗑️ ERROR: Error message:', error.message);
+      
+      
+      
       
       // Check for specific Firebase permission errors
       if (error.code === 'permission-denied') {
@@ -870,7 +870,7 @@ class CrewConnectService {
       const requestRef = await addDoc(collection(db, 'joinRequests'), requestData);
       return { id: requestRef.id, ...requestData };
     } catch (error) {
-      console.error('Error sending join request:', error);
+      
       throw error;
     }
   }
@@ -931,7 +931,7 @@ class CrewConnectService {
 
       return requests;
     } catch (error) {
-      console.error('Error getting join requests:', error);
+      
       throw error;
     }
   }
@@ -1025,7 +1025,7 @@ class CrewConnectService {
 
       return { success: true, action };
     } catch (error) {
-      console.error('Error handling join request:', error);
+      
       throw error;
     }
   }
@@ -1131,13 +1131,13 @@ class CrewConnectService {
         createdAt: serverTimestamp()
       };
 
-      console.log('📩 DEBUG: Creating invitation with data:', invitationData);
+      
       const invitationRef = await addDoc(collection(db, 'invitations'), invitationData);
-      console.log('📩 DEBUG: Invitation created successfully with ID:', invitationRef.id);
+      
       
       return { id: invitationRef.id, ...invitationData };
     } catch (error) {
-      console.error('Error sending invitation:', error);
+      
       throw error;
     }
   }
@@ -1148,12 +1148,12 @@ class CrewConnectService {
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
 
-      console.log('🔍 DEBUG: Fetching invitations for user:', user.uid, 'with status:', status);
+      
 
       const cacheKey = `user_invitations_${user.uid}_${status}`;
       const cached = cacheService.get(cacheKey);
       if (cached) {
-        console.log('🎯 Using cached user invitations');
+        
         return cached;
       }
 
@@ -1164,27 +1164,27 @@ class CrewConnectService {
       );
 
       const snapshot = await getDocs(invitationsQuery);
-      console.log('🔍 DEBUG: Query returned', snapshot.size, 'documents');
+      
 
       const invitations = snapshot.docs.map(doc => {
         const data = doc.data();
-        console.log('🔍 DEBUG: Invitation document:', { id: doc.id, status: data.status, invitedUserId: data.invitedUserId });
+        
         return {
           id: doc.id,
           ...data
         };
       }).filter(inv => inv.status === status); // Filter in memory instead of query
 
-      console.log('🔍 DEBUG: Returning', invitations.length, 'filtered invitations');
+      
       
       // Cache for 1 minute (invitations change frequently)
       cacheService.set(cacheKey, invitations, 60000);
-      console.log('🎯 Cached user invitations');
+      
       
       return invitations;
 
     } catch (error) {
-      console.error('Error getting user invitations:', error);
+      
       throw error;
     }
   }
@@ -1192,7 +1192,7 @@ class CrewConnectService {
   // Handle invitation (accept/decline)
   async handleInvitation(invitationId, action) {
     try {
-      console.log('🎯 DEBUG: Handling invitation', invitationId, 'with action', action);
+      
       
       const user = auth.currentUser;
       if (!user) throw new Error('User not authenticated');
@@ -1204,11 +1204,11 @@ class CrewConnectService {
       }
 
       const invitationData = invitationDoc.data();
-      console.log('🎯 DEBUG: Invitation data:', invitationData);
+      
 
       // Check if already handled
       if (invitationData.status !== 'pending') {
-        console.log('🎯 DEBUG: Invitation already handled with status:', invitationData.status);
+        
         throw new Error(`Invitation was already ${invitationData.status}`);
       }
 
@@ -1218,7 +1218,7 @@ class CrewConnectService {
       }
 
       // Update invitation status
-      console.log('🎯 DEBUG: Updating invitation status to', action);
+      
       await updateDoc(doc(db, 'invitations', invitationId), {
         status: action,
         handledAt: serverTimestamp()
@@ -1226,7 +1226,7 @@ class CrewConnectService {
 
       // Clear invitation caches
       cacheService.invalidate(`user_invitations_${user.uid}`);
-      console.log('🎯 Cleared invitation cache for user', user.uid);
+      
 
       // If accepted, add user to crew
       if (action === 'accepted') {
@@ -1240,7 +1240,7 @@ class CrewConnectService {
         const existingMembershipSnapshot = await getDocs(existingMembershipQuery);
         
         if (!existingMembershipSnapshot.empty) {
-          console.log('🎯 DEBUG: User is already a member, skipping membership creation');
+          
           return { success: true, action, message: 'Already a member of this group' };
         }
 
@@ -1272,12 +1272,12 @@ class CrewConnectService {
         
         // Clear crew caches since membership changed
         cacheService.invalidate(`user_crews_${user.uid}`);
-        console.log('🎯 Cleared crew cache for user', user.uid);
+        
       }
 
       return { success: true, action };
     } catch (error) {
-      console.error('Error handling invitation:', error);
+      
       throw error;
     }
   }
@@ -1302,7 +1302,7 @@ class CrewConnectService {
         return await this.sendJoinRequest(crewId, message);
       }
     } catch (error) {
-      console.error('Error requesting to join crew:', error);
+      
       throw error;
     }
   }
@@ -1393,11 +1393,11 @@ class CrewConnectService {
       // Clear relevant caches
       cacheService.invalidate(`user_crews_${memberUid}`); // Clear removed member's cache
       cacheService.invalidate(`user_crews_${user.uid}`); // Clear current user's cache
-      console.log('🎯 Cleared caches after member removal');
+      
 
       return { success: true };
     } catch (error) {
-      console.error('Error removing member from crew:', error);
+      
       throw error;
     }
   }
@@ -1405,11 +1405,11 @@ class CrewConnectService {
   // Utility function to sync member count (temporary for fixing data inconsistencies)
   async syncCrewMemberCount(crewId) {
     try {
-      console.log('🔧 DEBUG: Syncing member count for crew', crewId);
+      
       
       const crewDoc = await getDoc(doc(db, 'crews', crewId));
       if (!crewDoc.exists()) {
-        console.warn('🔧 DEBUG: Crew not found:', crewId);
+        
         return;
       }
 
@@ -1426,17 +1426,17 @@ class CrewConnectService {
       });
 
       if (actualMemberCount !== storedMemberCount) {
-        console.log('🔧 DEBUG: Fixing member count mismatch');
+        
         await updateDoc(doc(db, 'crews', crewId), {
           memberCount: actualMemberCount,
           updatedAt: serverTimestamp()
         });
-        console.log('🔧 DEBUG: Member count updated from', storedMemberCount, 'to', actualMemberCount);
+        
       }
 
       return { actualCount: actualMemberCount, wasFixed: actualMemberCount !== storedMemberCount };
     } catch (error) {
-      console.error('🔧 ERROR: Failed to sync member count:', error);
+      
       return null;
     }
   }
@@ -1484,7 +1484,7 @@ class CrewConnectService {
 
       return membersData;
     } catch (error) {
-      console.error('Error getting crew members:', error);
+      
       throw error;
     }
   }
@@ -1536,7 +1536,7 @@ class CrewConnectService {
           });
         }
         
-        console.log('Created missing membership record for crew creator');
+        
       } else {
         // Check if existing membership has proper permissions
         const membership = membershipSnapshot.docs[0].data();
@@ -1547,11 +1547,11 @@ class CrewConnectService {
             canModerate: true,
             updatedAt: serverTimestamp()
           });
-          console.log('Updated creator membership permissions');
+          
         }
       }
     } catch (error) {
-      console.error('Error ensuring creator membership:', error);
+      
     }
   }
 
@@ -1588,13 +1588,13 @@ class CrewConnectService {
       if (missingFromMembers.length > 0) {
         updatedMembers = [...new Set([...updatedMembers, ...missingFromMembers])];
         needsUpdate = true;
-        console.log('Fixed missing members in crew array:', missingFromMembers);
+        
       }
 
       // Remove orphaned entries from crew members array (optional - might want to keep for audit)
       // For now, we'll just log them
       if (missingFromMemberships.length > 0) {
-        console.log('Found users in crew members array without membership:', missingFromMemberships);
+        
       }
 
       // Update crew document if needed
@@ -1607,7 +1607,7 @@ class CrewConnectService {
       }
 
     } catch (error) {
-      console.error('Error validating membership consistency:', error);
+      
     }
   }
 }

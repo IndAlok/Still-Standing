@@ -117,7 +117,7 @@ const Profile = () => {
       await crewConnectService.updateUserProfile(currentUser.uid, { profilePicture: newImageUrl });
       setUserData(prev => ({ ...prev, profilePicture: newImageUrl, photoURL: newImageUrl }));
     } catch (error) {
-      console.error('Error updating profile picture:', error);
+      
     }
   };
 
@@ -146,7 +146,7 @@ const Profile = () => {
       const updatedData = await getUserData();
       setUserData(updatedData);
     } catch (error) {
-      console.error('Error removing skill:', error);
+      
     }
   };
 

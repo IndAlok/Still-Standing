@@ -27,7 +27,7 @@ const ProfileStats = ({ userId }) => {
         const userStats = await profileService.getUserStats(userId);
         setStats(userStats);
       } catch (error) {
-        console.error('Failed to load user stats:', error);
+        
       } finally {
         setLoading(false);
       }

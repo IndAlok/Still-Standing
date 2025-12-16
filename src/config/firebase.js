@@ -26,21 +26,21 @@ if (process.env.NODE_ENV === 'development') {
   // Check if we're already connected to avoid re-connection errors
   if (!globalThis._firebaseEmulatorConnected) {
     try {
-      console.log('🔧 Attempting to connect to Firebase emulators...');
+      
       
       // Only connect if emulator is running (non-blocking check)
       fetch('http://localhost:9199/storage/v1/b/default/o')
         .then(() => {
           connectStorageEmulator(storage, 'localhost', 9199);
-          console.log('✅ Connected to Storage emulator');
+          
         })
         .catch(() => {
-          console.log('📡 Storage emulator not available, using production');
+          
         });
         
       globalThis._firebaseEmulatorConnected = true;
     } catch (error) {
-      console.warn('⚠️ Emulator connection failed:', error.message);
+      
     }
   }
 }

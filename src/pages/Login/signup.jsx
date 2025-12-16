@@ -92,7 +92,7 @@ export default function SignUpPage() {
       // Immediate navigation without delay
       navigate("/dashboard");
     } catch (err) {
-      console.error('Signup error:', err);
+      
       setMessage(error || err.message || "Registration failed. Please try again.");
     } finally {
       setIsLoading(false);
@@ -110,7 +110,7 @@ export default function SignUpPage() {
       // Immediate navigation without delay
       navigate("/dashboard");
     } catch (err) {
-      console.error('Google signup error:', err);
+      
       setMessage(error || err.message || "Google registration failed");
     } finally {
       setIsGoogleLoading(false);

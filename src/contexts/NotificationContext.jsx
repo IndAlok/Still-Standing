@@ -64,7 +64,7 @@ export const NotificationProvider = ({ children }) => {
         )
       );
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      
     }
   }, []);
 
@@ -80,7 +80,7 @@ export const NotificationProvider = ({ children }) => {
       );
       setUnreadCount(0);
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      
     }
   }, [user?.uid]);
 
@@ -93,7 +93,7 @@ export const NotificationProvider = ({ children }) => {
         prev.filter(notification => notification.id !== notificationId)
       );
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      
     }
   }, []);
 
@@ -109,7 +109,7 @@ export const NotificationProvider = ({ children }) => {
         groupName
       );
     } catch (error) {
-      console.error('Error sending group invite:', error);
+      
       throw error;
     }
   }, [user?.uid]);
@@ -124,7 +124,7 @@ export const NotificationProvider = ({ children }) => {
         skillName
       );
     } catch (error) {
-      console.error('Error sending skill match notification:', error);
+      
       throw error;
     }
   }, [user?.uid]);
@@ -140,7 +140,7 @@ export const NotificationProvider = ({ children }) => {
         excludeUserId
       );
     } catch (error) {
-      console.error('Error sending new message notification:', error);
+      
     }
   }, [user?.uid]);
 
@@ -148,7 +148,7 @@ export const NotificationProvider = ({ children }) => {
     try {
       return await notificationService.sendMemberJoined(groupId, newMemberId);
     } catch (error) {
-      console.error('Error sending member joined notification:', error);
+      
     }
   }, []);
 

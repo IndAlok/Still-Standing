@@ -57,7 +57,7 @@ class AlternativeUploadService {
       };
 
     } catch (error) {
-      console.error('REST API upload error:', error);
+      
       throw error;
     }
   }

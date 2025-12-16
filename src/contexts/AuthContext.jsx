@@ -58,7 +58,7 @@ export function AuthProvider({ children }) {
         setUserProfile(newProfile);
       }
     } catch (error) {
-      console.error('Error handling user profile:', error);
+      
       setError('Failed to create user profile');
     }
   };
@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
             isOnline: false,
           });
         } catch (error) {
-          console.error('Error updating offline status:', error);
+          
           // Don't throw error, continue with logout
         }
       }
@@ -187,7 +187,7 @@ export function AuthProvider({ children }) {
         setUserProfile(updatedProfile);
       }
     } catch (error) {
-      console.warn('Failed to refresh user profile:', error);
+      
     }
   };
 
@@ -228,7 +228,7 @@ export function AuthProvider({ children }) {
         return userProfile || await crewConnectService.getUserProfile();
       }
     } catch (error) {
-      console.error('Error getting user data:', error);
+      
       return null;
     }
   };

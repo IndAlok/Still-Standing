@@ -105,7 +105,7 @@ const SimpleProfilePictureUpload = ({
       setPreview(null);
 
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
+      
       setError(error.message || 'Failed to upload image');
       if (preview) {
         setPreview(null);
@@ -127,7 +127,7 @@ const SimpleProfilePictureUpload = ({
         await onImageUpdate(null);
       }
     } catch (error) {
-      console.error('Error removing profile picture:', error);
+      
       setError('Failed to remove image');
     } finally {
       setUploading(false);

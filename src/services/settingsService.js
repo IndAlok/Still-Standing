@@ -63,7 +63,7 @@ class SettingsService {
       await this.initializeSettings(uid);
       return DEFAULT_SETTINGS;
     } catch (error) {
-      console.error('Error getting user settings:', error);
+      
       return DEFAULT_SETTINGS;
     }
   }
@@ -79,7 +79,7 @@ class SettingsService {
       this.settingsCache = DEFAULT_SETTINGS;
       this.cacheExpiry = Date.now() + 300000;
     } catch (error) {
-      console.error('Error initializing settings:', error);
+      
     }
   }
 
@@ -130,7 +130,7 @@ class SettingsService {
 
       return { success: true };
     } catch (error) {
-      console.error(`Error updating ${category} settings:`, error);
+      
       return { success: false, error: error.message };
     }
   }

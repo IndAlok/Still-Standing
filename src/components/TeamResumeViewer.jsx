@@ -51,7 +51,7 @@ const TeamResumeViewer = ({ teamMembers = [], className = '' }) => {
               memberId: member.uid
             }));
           } catch (error) {
-            console.error(`Failed to load resumes for ${member.uid}:`, error);
+            
             return [];
           }
         });
@@ -62,7 +62,7 @@ const TeamResumeViewer = ({ teamMembers = [], className = '' }) => {
         setTeamResumes(flattenedResumes);
         setFilteredResumes(flattenedResumes);
       } catch (error) {
-        console.error('Error loading team resumes:', error);
+        
         setError('Failed to load team resumes');
       } finally {
         setLoading(false);

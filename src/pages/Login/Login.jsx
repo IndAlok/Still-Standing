@@ -97,7 +97,7 @@ export default function LoginPage() {
       // Immediate navigation without delay
       navigate("/dashboard");
     } catch (err) {
-      console.error('Login error:', err);
+      
       setMessage(error || err.message || "Invalid credentials. Please try again");
     } finally {
       setIsLoading(false);
@@ -115,7 +115,7 @@ export default function LoginPage() {
       // Immediate navigation without delay
       navigate("/dashboard");
     } catch (err) {
-      console.error('Google login error:', err);
+      
       setMessage(error || err.message || "Google login failed");
     } finally {
       setIsGoogleLoading(false);

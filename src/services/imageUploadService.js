@@ -5,7 +5,7 @@ class ImageUploadService {
   // Upload profile picture
   async uploadProfilePicture(file, userId) {
     try {
-      console.log('Starting upload for file:', file.name, 'size:', file.size);
+      
       
       // Validate file
       if (!file) throw new Error('No file provided');
@@ -17,7 +17,7 @@ class ImageUploadService {
       const fileName = `profile-pictures/${userId}/${timestamp}-${file.name}`;
       const storageRef = ref(storage, fileName);
 
-      console.log('Uploading to storage path:', fileName);
+      
 
       // Upload file with metadata
       const metadata = {
@@ -25,14 +25,14 @@ class ImageUploadService {
       };
       
       const snapshot = await uploadBytes(storageRef, file, metadata);
-      console.log('Upload successful, getting download URL...');
+      
       
       const downloadURL = await getDownloadURL(snapshot.ref);
-      console.log('Download URL obtained:', downloadURL);
+      
 
       return downloadURL;
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
+      
       throw error;
     }
   }
@@ -52,7 +52,7 @@ class ImageUploadService {
         await deleteObject(imageRef);
       }
     } catch (error) {
-      console.error('Error deleting profile picture:', error);
+      
       // Don't throw error - deletion failure shouldn't block other operations
     }
   }

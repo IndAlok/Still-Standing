@@ -119,12 +119,12 @@ const Chat = () => {
 
         // Get initial messages and setup real-time listener
         const groupMessages = await crewConnectService.getCrewMessages(groupId);
-        console.log('📨 DEBUG: Fetched initial messages:', groupMessages);
+        
         setMessages(groupMessages || []);
 
         // Setup Firestore real-time listener for messages
         const unsubscribeMessages = crewConnectService.subscribeToCrewMessages(groupId, (newMessages) => {
-          console.log('📨 DEBUG: Real-time messages update:', newMessages);
+          
           setMessages(newMessages || []);
         });
 
@@ -137,7 +137,7 @@ const Chat = () => {
           
           // Setup socket message listener as backup
           const handleSocketMessage = (messageData) => {
-            console.log('📨 DEBUG: Socket message received:', messageData);
+            
             if (messageData.crewId === groupId && messageData.senderId !== currentUser?.uid) {
               setMessages(prevMessages => {
                 // Avoid duplicates by checking if message already exists
@@ -155,7 +155,7 @@ const Chat = () => {
 
           socketService.onNewMessage(handleSocketMessage);
         } catch (socketError) {
-          console.log('Socket.IO connection failed, using Firestore only:', socketError);
+          
         }
 
         setLoading(false);
@@ -170,7 +170,7 @@ const Chat = () => {
         };
 
       } catch (error) {
-        console.error('Error initializing chat:', error);
+        
         setError(error.message || 'Failed to load chat');
         setLoading(false);
       }
@@ -222,18 +222,18 @@ const Chat = () => {
         };
         socketService.sendMessage(messageData);
       } catch (socketError) {
-        console.log('Socket send failed, relying on Firestore:', socketError);
+        
       }
       
       // Send notification to other group members
       try {
         await sendNewMessage(groupId, messageText, currentUser?.uid);
       } catch (notificationError) {
-        console.error('Failed to send message notifications:', notificationError);
+        
       }
       
     } catch (error) {
-      console.error('Error sending message:', error);
+      
       setError('Failed to send message. Please try again.');
       setMessage(message.trim()); // Restore message on error
     } finally {

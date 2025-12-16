@@ -71,7 +71,7 @@ const ProfilePictureUpload = ({
         }, 500);
       }
     } catch (error) {
-      console.error('Upload error:', error);
+      
       setError(error.message);
       setPreviewURL(currentPhotoURL); // Revert preview
       setIsUploading(false);
@@ -95,7 +95,7 @@ const ProfilePictureUpload = ({
         onPhotoUpdate?.(result.url);
       }
     } catch (error) {
-      console.error('Google sync error:', error);
+      
       setError(error.message);
     } finally {
       setIsSyncing(false);
@@ -111,7 +111,7 @@ const ProfilePictureUpload = ({
       setPreviewURL(null);
       onPhotoUpdate?.(null);
     } catch (error) {
-      console.error('Delete error:', error);
+      
       setError(error.message);
     } finally {
       setIsUploading(false);

@@ -81,9 +81,9 @@ const Groups = () => {
     
     // Debug current user info
     if (currentUser?.uid) {
-      console.log('🔍 Groups component: Current user UID:', currentUser.uid);
-      console.log('🔍 Groups component: Current user email:', currentUser.email);
-      console.log('🔍 Groups component: Current user object:', currentUser);
+      
+      
+      
     }
   }, [activeTab, currentUser]);
 
@@ -100,7 +100,7 @@ const Groups = () => {
         setPublicGroups(groups);
       }
     } catch (error) {
-      console.error('Error fetching groups:', error);
+      
       setError('Failed to load groups. Please try again.');
     } finally {
       setLoading(false);
@@ -118,7 +118,7 @@ const Groups = () => {
   const syncMemberCounts = async () => {
     try {
       setLoading(true);
-      console.log('🔧 Syncing member counts for all groups...');
+      
       
       const groups = activeTab === 'my-groups' ? myGroups : publicGroups;
       for (const group of groups) {
@@ -128,7 +128,7 @@ const Groups = () => {
       setSuccess('Member counts synchronized successfully!');
       await refreshData();
     } catch (error) {
-      console.error('Error syncing member counts:', error);
+      
       setError('Failed to sync member counts');
     } finally {
       setLoading(false);
@@ -167,7 +167,7 @@ const Groups = () => {
       }
       
     } catch (error) {
-      console.error('Error creating group:', error);
+      
       setError(error.message || 'Failed to create group');
     } finally {
       setLoading(false);
@@ -186,14 +186,14 @@ const Groups = () => {
       try {
         await sendMemberJoined(groupId, currentUser?.uid);
       } catch (notificationError) {
-        console.error('Failed to send member joined notifications:', notificationError);
+        
       }
       
       // Refresh data
       await refreshData();
       
     } catch (error) {
-      console.error('Error joining group:', error);
+      
       setError(error.message || 'Failed to join group');
     } finally {
       setLoading(false);
@@ -215,7 +215,7 @@ const Groups = () => {
       await refreshData();
       
     } catch (error) {
-      console.error('Error removing member:', error);
+      
       setError(error.message || 'Failed to remove member');
     } finally {
       setLoading(false);
@@ -241,7 +241,7 @@ const Groups = () => {
       await refreshData();
       
     } catch (error) {
-      console.error('Error deleting group:', error);
+      
       setError(error.message || 'Failed to delete group');
       setShowDeleteConfirm(false);
     } finally {
@@ -270,7 +270,7 @@ const Groups = () => {
       await fetchData();
       
     } catch (error) {
-      console.error('Error sending invitation:', error);
+      
       setError(error.message || 'Failed to send invitation');
     } finally {
       setLoading(false);
@@ -285,7 +285,7 @@ const Groups = () => {
       setSelectedGroupMembers(members);
       setShowMembersModal(true);
     } catch (error) {
-      console.error('Error fetching members:', error);
+      
       setError(error.message || 'Failed to load members');
     } finally {
       setLoading(false);
@@ -407,11 +407,11 @@ const Groups = () => {
                 {(group.createdBy === currentUser?.uid || group.membership?.role === 'admin') ? (
                   <button
                     onClick={() => {
-                      console.log('🗑️ UI DEBUG: Delete button clicked');
-                      console.log('🗑️ UI DEBUG: Group createdBy:', group.createdBy);
-                      console.log('🗑️ UI DEBUG: Current user UID:', currentUser?.uid);
-                      console.log('🗑️ UI DEBUG: User role:', group.membership?.role);
-                      console.log('🗑️ UI DEBUG: Group data:', group);
+                      
+                      
+                      
+                      
+                      
                       setDeleteGroupId(group.id);
                       setShowDeleteConfirm(true);
                     }}

@@ -34,7 +34,7 @@ const Notifications = () => {
         navigate(notification.actionUrl);
       }
     } catch (error) {
-      console.error('Error handling notification click:', error);
+      
     }
   };
 

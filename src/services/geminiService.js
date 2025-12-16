@@ -58,7 +58,7 @@ class GeminiService {
 
       return { success: true, response: aiResponse };
     } catch (error) {
-      console.error('Gemini chat error:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -93,84 +93,113 @@ Be friendly, professional, and concise. Focus on actionable advice.`;
     try {
       const cleanedText = this.preprocessResumeText(resumeText);
       
-      if (cleanedText.length < 50) {
+      if (cleanedText.length < 30) {
         throw new Error('Resume text is too short to parse');
       }
 
-      const prompt = `You are an expert resume parser. Analyze this resume and extract ALL information with high accuracy.
+      const prompt = `You are an expert resume/CV parser with perfect accuracy. Parse the following resume and extract ALL information.
 
-CRITICAL INSTRUCTIONS:
-1. Extract every single skill mentioned - technical, soft, languages, tools
-2. Categorize skills accurately: "technical", "soft", "language", "tool", "framework"
-3. Determine skill level from context (e.g., "5 years React" = expert, "familiar with" = beginner)
-4. Extract ALL work experience with complete details
-5. Parse education including degrees, institutions, dates
-6. Find portfolio links (GitHub, LinkedIn, personal site)
-7. Extract certifications, awards, publications
-8. Identify the career level: junior, mid, senior, lead, executive
+CRITICAL: You MUST extract every piece of information present. Do not skip anything. This includes:
+- Full name, contact info, location
+- Education with institutions, degrees, scores/GPA, dates
+- ALL technical skills, programming languages, tools, frameworks
+- ALL soft skills and competencies
+- Work experience and internships
+- Projects with descriptions and technologies used
+- Certifications with issuers and dates
+- Awards, honors, achievements
+- Volunteering experience
+- Languages spoken with proficiency levels
+- Professional summary if present
 
-Return ONLY a valid JSON object with this EXACT structure:
+Return a valid JSON object with this structure:
 {
   "personalInfo": {
-    "name": "Full Name",
-    "email": "email@example.com",
-    "phone": "+1234567890",
-    "location": "City, Country",
-    "linkedin": "https://linkedin.com/in/username",
-    "github": "https://github.com/username",
-    "portfolio": "https://portfolio.com",
-    "summary": "2-3 sentence professional summary"
+    "name": "extracted full name",
+    "email": "email if found or null",
+    "phone": "phone if found or null",
+    "location": "city, state/country",
+    "linkedin": "linkedin url or null",
+    "github": "github url or null",
+    "portfolio": "portfolio url or null",
+    "summary": "professional summary extracted or generated from context"
   },
   "skills": [
-    { "name": "React", "category": "framework", "level": "expert", "yearsOfExperience": 5 },
-    { "name": "Python", "category": "technical", "level": "advanced", "yearsOfExperience": 3 }
-  ],
-  "experience": [
-    {
-      "title": "Job Title",
-      "company": "Company Name",
-      "location": "City, Country",
-      "startDate": "Jan 2020",
-      "endDate": "Present",
-      "isCurrent": true,
-      "highlights": ["Achievement 1", "Achievement 2"],
-      "technologies": ["React", "Node.js"]
-    }
+    {"name": "Python", "category": "technical", "level": "advanced"},
+    {"name": "Java", "category": "technical", "level": "intermediate"},
+    {"name": "Git", "category": "tool", "level": "advanced"},
+    {"name": "Leadership", "category": "soft", "level": "intermediate"},
+    {"name": "React", "category": "framework", "level": "beginner"}
   ],
   "education": [
     {
-      "degree": "Bachelor of Science in Computer Science",
-      "institution": "University Name",
+      "degree": "B.Tech in Electronics and Communications",
+      "institution": "IIITDM Jabalpur",
+      "location": "Jabalpur, India",
+      "startYear": "2024",
+      "endYear": "2028",
+      "score": "GPA or percentage if mentioned",
+      "highlights": ["relevant coursework or achievements"]
+    }
+  ],
+  "experience": [
+    {
+      "title": "Position Title",
+      "company": "Company/Organization",
       "location": "City",
-      "graduationYear": "2020",
-      "gpa": "3.8"
+      "startDate": "Month Year",
+      "endDate": "Present or Month Year",
+      "isCurrent": true,
+      "description": "Brief description",
+      "highlights": ["key achievements"],
+      "technologies": ["technologies used"]
     }
   ],
   "projects": [
     {
       "name": "Project Name",
-      "description": "Brief description",
-      "technologies": ["React", "Firebase"],
-      "url": "https://project-url.com",
-      "highlights": ["Key achievement"]
+      "description": "What the project does",
+      "technologies": ["Python", "Firebase"],
+      "highlights": ["key metrics or achievements"],
+      "url": "url if available"
     }
   ],
   "certifications": [
-    { "name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2023" }
+    {"name": "Certificate Name", "issuer": "Issuing Organization", "date": "Date"}
+  ],
+  "awards": [
+    {"name": "Award Name", "issuer": "Issuing Organization", "date": "Date", "description": "Brief description"}
+  ],
+  "volunteering": [
+    {
+      "role": "Role Title",
+      "organization": "Organization Name",
+      "location": "Location",
+      "startDate": "Start Date",
+      "endDate": "End Date or Present",
+      "description": "What you did",
+      "impact": "Impact/achievements"
+    }
   ],
   "languages": [
-    { "language": "English", "proficiency": "Native" }
+    {"language": "English", "proficiency": "Fluent"},
+    {"language": "Hindi", "proficiency": "Native"}
   ],
-  "careerLevel": "senior",
-  "totalYearsExperience": 7,
-  "keyStrengths": ["Full Stack Development", "Team Leadership"],
-  "industries": ["Technology", "FinTech"]
+  "careerLevel": "student/entry/junior/mid/senior/lead",
+  "domain": "Primary domain like Cybersecurity, Web Development, etc",
+  "keyStrengths": ["strength1", "strength2", "strength3"]
 }
+
+IMPORTANT: 
+- Set skill levels based on context: years of experience, depth of projects, certifications
+- Extract ALL skills mentioned, including programming languages, tools, frameworks, methodologies
+- Include soft skills from dedicated sections or inferred from experience
+- For education scores, preserve the original format (percentage, GPA, grade)
 
 RESUME TEXT:
 ${cleanedText}
 
-Return ONLY the JSON object, no markdown, no explanation.`;
+Return ONLY the JSON object. No markdown code blocks, no explanations.`;
 
       const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
         method: 'POST',
@@ -178,17 +207,17 @@ Return ONLY the JSON object, no markdown, no explanation.`;
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 4096,
-            topP: 0.8,
-            topK: 20
+            temperature: 0.1,
+            maxOutputTokens: 8192,
+            topP: 0.9,
+            topK: 40
           }
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        throw new Error(`API error: ${response.status} - ${errorData.error?.message || 'Unknown'}`);
       }
 
       const data = await response.json();
@@ -208,7 +237,6 @@ Return ONLY the JSON object, no markdown, no explanation.`;
         confidence: this.calculateParseConfidence(parsed)
       };
     } catch (error) {
-      console.error('Resume parsing error:', error);
       return { success: false, error: error.message };
     }
   }
@@ -377,7 +405,7 @@ Return ONLY the JSON object.`;
       
       return { success: true, data: JSON.parse(jsonMatch[0]) };
     } catch (error) {
-      console.error('Compatibility analysis error:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -428,7 +456,7 @@ Return ONLY the JSON object.`;
       
       return { success: true, data: JSON.parse(jsonMatch[0]) };
     } catch (error) {
-      console.error('Team suggestion error:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -471,7 +499,7 @@ Return ONLY the JSON object.`;
       
       return { success: true, data: JSON.parse(jsonMatch[0]) };
     } catch (error) {
-      console.error('Summarization error:', error);
+      
       return { success: false, error: error.message };
     }
   }
@@ -513,7 +541,7 @@ Return ONLY the JSON object.`;
       
       return { success: true, data: JSON.parse(jsonMatch[0]) };
     } catch (error) {
-      console.error('Skill recommendation error:', error);
+      
       return { success: false, error: error.message };
     }
   }

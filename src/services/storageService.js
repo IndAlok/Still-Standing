@@ -48,13 +48,13 @@ class StorageService {
    * Upload profile picture with image optimization
    */
   async uploadProfilePicture(file, userId = null) {
-    console.log('🚀 Starting profile picture upload...');
+    
     try {
       const currentUserId = userId || this.getCurrentUserId();
       const user = auth.currentUser;
-      console.log('📝 Upload for user ID:', currentUserId);
-      console.log('🔐 Auth user ID:', user?.uid);
-      console.log('🎯 User IDs match:', currentUserId === user?.uid);
+      
+      
+      
       
       // Validate file type
       if (!file.type.startsWith('image/')) {
@@ -75,10 +75,10 @@ class StorageService {
         throw new Error('Supported formats: JPG, PNG, WebP, GIF');
       }
 
-      console.log('🔄 Converting file to data URL...');
+      
       // Convert file to Data URL as fallback for CORS issues
       const dataURL = await this.fileToDataURL(file);
-      console.log('✅ File converted to data URL, length:', dataURL.length);
+      
       
       // Store in Firestore as a fallback until CORS is resolved
       const profilePictureData = {
@@ -91,11 +91,11 @@ class StorageService {
         originalName: file.name
       };
 
-      console.log('💾 Saving to Firestore...');
+      
       // Update user profile in Firestore with data URL
       await this.updateUserProfilePicture(currentUserId, dataURL, profilePictureData);
 
-      console.log('Profile picture uploaded as data URL (CORS workaround) - v2');
+      
 
       // Clear cache
       cacheService.delete(`profile-${currentUserId}`);
@@ -113,7 +113,7 @@ class StorageService {
       };
 
     } catch (error) {
-      console.error('❌ Profile picture upload error:', error);
+      
       throw new Error(`Upload failed: ${error.message}`);
     }
   }
@@ -181,7 +181,7 @@ class StorageService {
       let profileCompleteness = 0;
 
       try {
-        console.log('📄 Parsing resume with comprehensive AI backend and profile population...');
+        
         const parseResult = await this.parseResumeWithAI(file, currentUserId, true);
         
         parsedData = parseResult.data;
@@ -192,15 +192,15 @@ class StorageService {
         
         // Extract key insights from parsed data
         const insights = this.extractResumeInsights(parsedData);
-        console.log('🎯 Resume insights:', insights);
+        
         
         if (profilePopulated) {
-          console.log('🎉 Profile automatically populated from resume!');
-          console.log('📈 Profile completeness:', profileCompleteness + '%');
+          
+          
         }
         
       } catch (aiError) {
-        console.error('❌ AI parsing failed:', aiError);
+        
         parseError = aiError.message;
         parseMethod = 'failed';
       }
@@ -254,24 +254,24 @@ class StorageService {
       
       try {
         await setDoc(doc(db, 'resumes', resumeDocId), resumeData);
-        console.log('✅ Resume document saved to collection');
+        
       } catch (firestoreError) {
-        console.error('❌ Firestore setDoc error:', firestoreError);
+        
         throw new Error(`Firestore permission denied: ${firestoreError.message}`);
       }
 
       // Update user document with just a reference to the resume
       const userDocRef = doc(db, 'users', currentUserId);
-      console.log('📝 Updating user document with resume reference...');
+      
       
       try {
         await updateDoc(userDocRef, {
           activeResumeId: resumeDocId,
           lastResumeUpdate: new Date()
         });
-        console.log('✅ User document updated with resume reference');
+        
       } catch (userUpdateError) {
-        console.error('❌ User document update error:', userUpdateError);
+        
         // Don't throw here as the resume is already saved
       }
 
@@ -279,7 +279,7 @@ class StorageService {
       cacheService.delete(`profile-${currentUserId}`);
       cacheService.delete(`resumes-${currentUserId}`);
 
-      console.log('✅ Resume uploaded successfully to separate collection');
+      
 
       return {
         success: true,
@@ -290,51 +290,20 @@ class StorageService {
       };
 
     } catch (error) {
-      console.error('Resume upload error:', error);
+      
       throw new Error(`Resume upload failed: ${error.message}`);
     }
   }
 
-  /**
-   * Parse resume using Gemini AI (client-side, no backend required)
-   */
   async parseResumeWithAI(file, userId, populateProfile = true) {
-    console.log('📄 Parsing resume with Gemini AI...');
-    console.log('📁 File details:', { name: file.name, type: file.type, size: file.size });
-    
     const { geminiService } = await import('./geminiService');
+    const { resumeParserService } = await import('./resumeParserService');
     
-    let textContent = '';
-    let extractionMethod = 'unknown';
-    
-    try {
-      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-        textContent = await file.text();
-        extractionMethod = 'text_direct';
-      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        textContent = await this.extractTextFromPdf(file);
-        extractionMethod = 'pdf_extraction';
-      } else if (file.type.includes('word') || file.name.endsWith('.docx') || file.name.endsWith('.doc')) {
-        textContent = await this.extractTextFromDoc(file);
-        extractionMethod = 'doc_extraction';
-      } else {
-        textContent = await file.text();
-        extractionMethod = 'fallback_text';
-      }
-    } catch (extractError) {
-      console.error('Primary extraction failed:', extractError);
-      textContent = await this.extractTextFallback(file);
-      extractionMethod = 'final_fallback';
-    }
-
-    console.log('📝 Extraction method:', extractionMethod);
-    console.log('📝 Extracted text length:', textContent.length);
-    console.log('📝 Text preview (first 200 chars):', textContent.substring(0, 200));
+    const textContent = await resumeParserService.extractText(file);
 
     if (!textContent || textContent.length < 30) {
       throw new Error(
-        `Could not extract sufficient text from resume (got ${textContent.length} chars). ` +
-        'For best results, please upload a .txt file with your resume content, or copy-paste your resume into a text file first.'
+        'Could not extract text from this resume format. Please try uploading a .txt file.'
       );
     }
 
@@ -344,42 +313,38 @@ class StorageService {
       throw new Error(parseResult.error || 'Resume parsing failed');
     }
 
-    console.log('✅ Resume parsed successfully');
-    console.log('📊 Parsed data preview:', {
-      name: parseResult.data?.personalInfo?.name,
-      skills_count: parseResult.data?.skills?.length || 0,
-      experience_count: parseResult.data?.experience?.length || 0,
-      confidence: parseResult.confidence
-    });
-
+    const data = parseResult.data;
+    
     const normalizedData = {
-      full_name: parseResult.data.personalInfo?.name,
-      professional_title: parseResult.data.experience?.[0]?.title || '',
+      full_name: data.personalInfo?.name,
+      summary: data.personalInfo?.summary,
+      domain: data.domain,
       contact_info: {
-        email: parseResult.data.personalInfo?.email,
-        phone: parseResult.data.personalInfo?.phone,
-        linkedin: parseResult.data.personalInfo?.linkedin,
-        github: parseResult.data.personalInfo?.github,
-        website: parseResult.data.personalInfo?.portfolio
+        email: data.personalInfo?.email,
+        phone: data.personalInfo?.phone,
+        linkedin: data.personalInfo?.linkedin,
+        github: data.personalInfo?.github,
+        website: data.personalInfo?.portfolio,
+        location: data.personalInfo?.location
       },
-      technical_skills: parseResult.data.skills || [],
-      soft_skills: parseResult.data.skills?.filter(s => s.category === 'soft') || [],
-      experience: parseResult.data.experience || [],
-      education: parseResult.data.education || [],
-      projects: parseResult.data.projects || [],
-      certifications: parseResult.data.certifications || [],
-      languages: parseResult.data.languages || [],
-      years_experience: parseResult.data.totalYearsExperience,
-      career_level: parseResult.data.careerLevel,
-      industries: parseResult.data.industries || []
+      skills: data.skills || [],
+      technical_skills: (data.skills || []).filter(s => s.category !== 'soft'),
+      soft_skills: (data.skills || []).filter(s => s.category === 'soft'),
+      experience: data.experience || [],
+      education: data.education || [],
+      projects: data.projects || [],
+      certifications: data.certifications || [],
+      awards: data.awards || [],
+      volunteering: data.volunteering || [],
+      languages: data.languages || [],
+      career_level: data.careerLevel,
+      key_strengths: data.keyStrengths || []
     };
 
     return {
       success: true,
       data: normalizedData,
-      method: 'gemini_client',
-      extractionMethod,
-      profile_populated: false,
+      rawParsedData: data,
       profile_completeness: parseResult.confidence || 0
     };
   }
@@ -408,12 +373,12 @@ class StorageService {
 
     // Use the longest extracted text
     if (extractedTexts.length === 0) {
-      console.warn('PDF extraction: No strategies produced usable text');
+      
       return '';
     }
 
     extractedTexts.sort((a, b) => b.text.length - a.text.length);
-    console.log('PDF extraction results:', extractedTexts.map(t => ({ method: t.method, length: t.text.length })));
+    
     
     return this.cleanExtractedText(extractedTexts[0].text);
   }
@@ -633,7 +598,7 @@ class StorageService {
    */
   async populateProfileFromResume(resumeData, userId, existingProfile = null) {
     try {
-      console.log('🤖 Calling AI matchmaker service for profile population...');
+      
       
       const response = await fetch('http://localhost:5001/api/profile/populate', {
         method: 'POST',
@@ -658,7 +623,7 @@ class StorageService {
         throw new Error(result.error || 'Profile population failed');
       }
 
-      console.log('✅ Profile populated successfully!');
+      
       console.log('📊 Population results:', {
         completeness: result.completeness,
         fieldsPopulated: result.fieldsPopulated
@@ -672,7 +637,7 @@ class StorageService {
       };
       
     } catch (error) {
-      console.error('❌ Profile population error:', error);
+      
       return {
         success: false,
         error: error.message
@@ -705,7 +670,7 @@ class StorageService {
       return { success: false, completeness: 0 };
       
     } catch (error) {
-      console.error('Profile completeness check error:', error);
+      
       return { success: false, completeness: 0 };
     }
   }
@@ -722,7 +687,7 @@ class StorageService {
         throw new Error('No Google profile picture available');
       }
 
-      console.log('Syncing Google profile picture from:', user.photoURL);
+      
 
       // For CORS workaround, directly use Google's photo URL
       // This avoids the download and re-upload process that causes CORS issues
@@ -741,7 +706,7 @@ class StorageService {
       // Update user profile in Firestore with Google photo URL directly
       await this.updateUserProfilePicture(currentUserId, user.photoURL, profilePictureData);
 
-      console.log('Google profile picture synced successfully using direct URL');
+      
 
       // Clear cache
       cacheService.delete(`profile-${currentUserId}`);
@@ -759,7 +724,7 @@ class StorageService {
       };
 
     } catch (error) {
-      console.error('Google profile sync error:', error);
+      
       throw new Error(`Google sync failed: ${error.message}`);
     }
   }
@@ -794,7 +759,7 @@ class StorageService {
       return null;
 
     } catch (error) {
-      console.warn('Get profile picture error:', error);
+      
       return null;
     }
   }
@@ -818,7 +783,7 @@ class StorageService {
       const resumes = await this.getUserResumes(userId);
       return resumes.length > 0 ? resumes[0] : null;
     } catch (error) {
-      console.error('Get user resume error:', error);
+      
       return null;
     }
   }
@@ -851,7 +816,7 @@ class StorageService {
       return resumes;
 
     } catch (error) {
-      console.error('Get user resumes error:', error);
+      
       return [];
     }
   }
@@ -877,7 +842,7 @@ class StorageService {
       );
 
     } catch (error) {
-      console.error('Get team member resumes error:', error);
+      
       throw new Error(`Access denied: ${error.message}`);
     }
   }
@@ -903,7 +868,7 @@ class StorageService {
       return { success: true };
 
     } catch (error) {
-      console.error('Delete profile picture error:', error);
+      
       throw new Error(`Delete failed: ${error.message}`);
     }
   }
@@ -952,7 +917,7 @@ class StorageService {
       return { success: true };
 
     } catch (error) {
-      console.error('Delete resume error:', error);
+      
       throw new Error(`Delete failed: ${error.message}`);
     }
   }
@@ -973,7 +938,7 @@ class StorageService {
           await getMetadata(storageRef);
           // File exists, now try to delete it
           await deleteObject(storageRef);
-          console.log(`Deleted existing profile picture: ${path}`);
+          
         } catch (metadataError) {
           // File doesn't exist, skip
           if (metadataError.code === 'storage/object-not-found') {
@@ -983,7 +948,7 @@ class StorageService {
         }
       } catch (error) {
         // Log warning but don't throw - continue with other extensions
-        console.warn(`Could not delete profile picture ${ext}:`, error.message);
+        
         continue;
       }
     }
@@ -994,7 +959,7 @@ class StorageService {
    */
   async updateUserProfilePicture(userId, url, metadata = {}) {
     try {
-      console.log('🔧 DEBUG: updateUserProfilePicture called with userId:', userId);
+      
       const userDocRef = doc(db, 'users', userId);
       
       // Get current user info from Firebase Auth for initial profile creation
@@ -1026,13 +991,13 @@ class StorageService {
         }
       }
       
-      console.log('🔧 DEBUG: Using setDoc with merge for profile data');
+      
       
       // Use setDoc with merge to create document if it doesn't exist
       await setDoc(userDocRef, profileData, { merge: true });
-      console.log('✅ SUCCESS: Profile picture updated in Firestore for user:', userId);
+      
     } catch (error) {
-      console.warn('⚠️ WARNING: Failed to update profile picture in Firestore:', error.message);
+      
       // Don't throw error to avoid blocking other operations
     }
   }
@@ -1096,7 +1061,7 @@ class StorageService {
       // return currentUserTeam && currentUserTeam === targetUserTeam;
 
     } catch (error) {
-      console.error('Team membership verification error:', error);
+      
       return false;
     }
   }
@@ -1145,7 +1110,7 @@ class StorageService {
       };
 
     } catch (error) {
-      console.error('Get storage usage error:', error);
+      
       return {
         totalSize: 0,
         fileCount: 0,
@@ -1188,14 +1153,14 @@ class StorageService {
         for (let i = 2; i < sortedItems.length; i++) {
           try {
             await deleteObject(sortedItems[i]);
-            console.log('Cleaned up old profile picture:', sortedItems[i].name);
+            
           } catch (error) {
-            console.warn('Could not delete old profile picture:', error.message);
+            
           }
         }
       }
     } catch (error) {
-      console.warn('Profile picture cleanup error:', error.message);
+      
     }
   }
 }
