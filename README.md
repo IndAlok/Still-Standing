@@ -1,50 +1,41 @@
 # CrewConnect
 
-<div align="center">
-  <img src="https://img.shields.io/badge/React-18.0-61dafb?style=for-the-badge&logo=react" alt="React" />
-  <img src="https://img.shields.io/badge/Firebase-10.0-ffca28?style=for-the-badge&logo=firebase" alt="Firebase" />
-  <img src="https://img.shields.io/badge/Gemini%20AI-1.5-4285f4?style=for-the-badge&logo=google" alt="Gemini AI" />
-  <img src="https://img.shields.io/badge/TailwindCSS-3.0-38bdf8?style=for-the-badge&logo=tailwindcss" alt="TailwindCSS" />
-</div>
+CrewConnect is an AI-powered team matchmaking and collaboration platform that uses Google's Gemini AI to intelligently match teammates, analyze skills, and build optimal project teams.
 
-<br />
+## Key Features
 
-**CrewConnect** is an AI-powered team matchmaking and collaboration platform that uses Google's Gemini AI to intelligently match teammates, analyze skills, and build optimal project teams.
-
-## ✨ Key Features
-
-### 🤖 AI-Powered Intelligence
+### AI-Powered Intelligence
 - **CrewBot Assistant** - Context-aware AI chatbot available in every crew
 - **Smart Matching** - ML-powered compatibility scoring between users
 - **Resume Parser** - Automatically extract skills from uploaded resumes using Gemini AI
 - **Conversation Summarization** - AI-generated summaries of team discussions
 - **Skill Recommendations** - Personalized learning path suggestions
 
-### 🎯 Intelligent Team Building
+### Intelligent Team Building
 - **Team Builder Wizard** - 3-step AI-guided team composition
 - **Compatibility Scoring** - Match percentage based on complementary skills
 - **Skill Gap Analysis** - Identify missing capabilities in your team
 - **Optimal Team Suggestions** - AI recommends the best team composition
 
-### 👤 Advanced Profile System
+### Advanced Profile System
 - **Skill Management** - Add, remove, and categorize skills with proficiency levels
 - **Skill Endorsements** - Get endorsed by teammates for credibility
 - **Portfolio Integration** - Link GitHub, LinkedIn, and personal websites
 - **AI Resume Import** - Upload resume and auto-populate skills
 
-### 💬 Real-Time Collaboration
+### Real-Time Collaboration
 - **Instant Messaging** - Real-time group chat with Firebase Firestore
-- **Message Reactions** - React to messages with emojis
+- **Message Reactions** - React to messages
 - **Threaded Replies** - Organized conversation threads
 - **AI Summaries** - One-click conversation summaries
 
-### 👥 Group Management
+### Group Management
 - **Public/Private Groups** - Create teams with visibility settings
 - **Role-Based Access** - Owner, admin, and member permissions
 - **Invitation System** - Invite by email with custom messages
 - **Join Requests** - Approve/reject membership requests
 
-## 🏗️ Tech Stack
+## Tech Stack
 
 | Category | Technologies |
 |----------|-------------|
@@ -54,7 +45,7 @@
 | **Icons** | Lucide React |
 | **Routing** | React Router DOM v6 |
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - Node.js 18+
@@ -95,7 +86,7 @@ npm start
 
 Access at `http://localhost:3000`
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 src/
@@ -122,7 +113,7 @@ src/
     └── crewConnectService.js # Firebase operations
 ```
 
-## 🧠 AI Features Deep Dive
+## AI Features Deep Dive
 
 ### CrewBot Assistant
 The AI assistant uses Gemini 1.5 Flash with conversation history and context awareness:
@@ -144,14 +135,14 @@ Uses Gemini to extract:
 - Work experience and education
 - Projects and certifications
 
-## 🔐 Security
+## Security
 
 - Firebase Authentication with Google Sign-In
 - Firestore Security Rules for data protection
 - Environment variables for sensitive keys
 - XSS protection headers in Vercel deployment
 
-## 🌐 Deployment
+## Deployment
 
 ### Vercel (Recommended)
 
@@ -160,11 +151,11 @@ npm i -g vercel
 vercel
 ```
 
-Add environment variables in Vercel Dashboard → Settings → Environment Variables.
+Add environment variables in Vercel Dashboard -> Settings -> Environment Variables.
 
 The included `vercel.json` handles SPA routing and security headers.
 
-## 📊 Database Schema
+## Database Schema
 
 ```
 /users/{userId}
@@ -184,7 +175,7 @@ The included `vercel.json` handles SPA routing and security headers.
 └── thread: [{ content, senderId }]
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -192,12 +183,6 @@ The included `vercel.json` handles SPA routing and security headers.
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-<div align="center">
-  <strong>Built with ❤️ using React, Firebase, and Google Gemini AI</strong>
-</div>
