@@ -899,33 +899,18 @@ const UserProfilePage = () => {
           }
           
           // Show enhanced success message
-          const successMessage = `🎉 Resume uploaded and profile auto-populated successfully!
-            
-📊 Results:
-• Parse Status: ${resumeData.parseStatus}
-• Parse Method: ${resumeData.parseMethod}  
-• Profile Completeness: ${resumeData.profileCompleteness}%
-• Skills Found: ${insights?.technicalSkillsCount || 0}
-• Experience: ${insights?.totalExperience || 0} years
-• Auto-populated Fields: ${Object.keys(populatedProfile).length}
-
-✨ Your profile has been automatically updated with information from your resume!`;
-
-          alert(successMessage);
+          const skillsCount = insights?.technicalSkillsCount || 0;
+          const experience = insights?.totalExperience || 0;
+          
+          alert(`Resume uploaded successfully!\n\n${skillsCount} skills and ${experience} years of experience detected.\n\nYour profile has been updated with the extracted information.`);
         } else {
           // Standard profile update without auto-population
           await updateUserProfile(profileUpdateData);
           
-          const successMessage = insights 
-            ? `Resume uploaded successfully! 
-               Parse Status: ${resumeData.parseStatus}
-               Method: ${resumeData.parseMethod}
-               Completeness: ${insights.completenessScore}%
-               Skills Found: ${insights.technicalSkillsCount}
-               Experience: ${insights.totalExperience} years`
-            : `Resume uploaded successfully! Parse status: ${resumeData.parseStatus}`;
-
-          alert(successMessage);
+          const skillsCount = insights?.technicalSkillsCount || 0;
+          const experience = insights?.totalExperience || 0;
+          
+          alert(`Resume uploaded successfully!\n\nFound ${skillsCount} skills and ${experience} years of experience.`);
         }
 
         
@@ -1282,11 +1267,11 @@ const UserProfilePage = () => {
                               <div className="text-xs text-slate-400">Years Exp</div>
                             </div>
                             
-                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center">
-                              <div className="text-lg font-bold text-cyan-400">
-                                {uploadedResume.parseMethod || 'AI'}
+                            <div className="bg-slate-600/30 p-3 rounded-xl border border-slate-500/30 text-center min-w-0">
+                              <div className="text-lg font-bold text-cyan-400 truncate">
+                                AI
                               </div>
-                              <div className="text-xs text-slate-400">Method</div>
+                              <div className="text-xs text-slate-400">Parsed</div>
                             </div>
                           </div>
 
