@@ -296,51 +296,145 @@ class StorageService {
   }
 
   /**
-   * Parse resume using the comprehensive AI backend with profile population
+   * Parse resume using Gemini AI (client-side, no backend required)
    */
   async parseResumeWithAI(file, userId, populateProfile = true) {
-    const formData = new FormData();
-    formData.append('resume', file);
+    console.log('📄 Parsing resume with Gemini AI...');
     
-    // Add optional parameters for profile population
-    if (userId) {
-      formData.append('userId', userId);
-    }
-    if (populateProfile) {
-      formData.append('populateProfile', 'true');
-    }
-
-    console.log('📄 Sending resume to comprehensive AI parser with profile population...');
-
-    const response = await fetch('http://localhost:5000/api/parse-resume', {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `AI parsing failed: ${response.status}`);
-    }
-
-    const result = await response.json();
+    const { geminiService } = await import('./geminiService');
     
-    if (!result.success) {
-      throw new Error(result.error || 'Resume parsing failed');
+    let textContent = '';
+    
+    if (file.type === 'text/plain') {
+      textContent = await file.text();
+    } else if (file.type === 'application/pdf') {
+      textContent = await this.extractTextFromPdf(file);
+    } else if (file.type.includes('word') || file.type.includes('document')) {
+      textContent = await this.extractTextFromDoc(file);
+    } else {
+      textContent = await file.text();
     }
 
-    console.log('✅ Resume parsed successfully with method:', result.method);
+    if (!textContent || textContent.length < 50) {
+      throw new Error('Could not extract text from resume. Please try a .txt or .pdf file.');
+    }
+
+    console.log('📝 Extracted text length:', textContent.length);
+
+    const parseResult = await geminiService.parseResume(textContent, file.type);
+    
+    if (!parseResult.success) {
+      throw new Error(parseResult.error || 'Resume parsing failed');
+    }
+
+    console.log('✅ Resume parsed successfully');
     console.log('📊 Parsed data preview:', {
-      name: result.data?.full_name,
-      title: result.data?.professional_title,
-      experience_count: result.data?.experience?.length || 0,
-      skills_count: result.data?.technical_skills?.length || 0,
-      method: result.method,
-      profile_populated: result.profile_populated || false,
-      profile_completeness: result.profile_completeness || 0
+      name: parseResult.data?.personalInfo?.name,
+      skills_count: parseResult.data?.skills?.length || 0,
+      experience_count: parseResult.data?.experience?.length || 0,
+      confidence: parseResult.confidence
     });
 
-    return result;
+    const normalizedData = {
+      full_name: parseResult.data.personalInfo?.name,
+      professional_title: parseResult.data.experience?.[0]?.title || '',
+      contact_info: {
+        email: parseResult.data.personalInfo?.email,
+        phone: parseResult.data.personalInfo?.phone,
+        linkedin: parseResult.data.personalInfo?.linkedin,
+        github: parseResult.data.personalInfo?.github,
+        website: parseResult.data.personalInfo?.portfolio
+      },
+      technical_skills: parseResult.data.skills || [],
+      soft_skills: parseResult.data.skills?.filter(s => s.category === 'soft') || [],
+      experience: parseResult.data.experience || [],
+      education: parseResult.data.education || [],
+      projects: parseResult.data.projects || [],
+      certifications: parseResult.data.certifications || [],
+      languages: parseResult.data.languages || [],
+      years_experience: parseResult.data.totalYearsExperience,
+      career_level: parseResult.data.careerLevel,
+      industries: parseResult.data.industries || []
+    };
+
+    return {
+      success: true,
+      data: normalizedData,
+      method: 'gemini_client',
+      profile_populated: false,
+      profile_completeness: parseResult.confidence || 0
+    };
   }
+
+  async extractTextFromPdf(file) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const text = await this.pdfToText(arrayBuffer);
+      return text;
+    } catch (error) {
+      console.warn('PDF extraction failed, trying raw text:', error);
+      return await file.text();
+    }
+  }
+
+  async pdfToText(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let text = '';
+    let inText = false;
+    let textBuffer = '';
+
+    for (let i = 0; i < bytes.length; i++) {
+      const char = String.fromCharCode(bytes[i]);
+      
+      if (char === '(' && !inText) {
+        inText = true;
+        textBuffer = '';
+      } else if (char === ')' && inText) {
+        inText = false;
+        text += textBuffer + ' ';
+      } else if (inText) {
+        if (bytes[i] >= 32 && bytes[i] <= 126) {
+          textBuffer += char;
+        }
+      }
+    }
+
+    if (text.length < 100) {
+      let rawText = '';
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] >= 32 && bytes[i] <= 126) {
+          rawText += String.fromCharCode(bytes[i]);
+        } else if (bytes[i] === 10 || bytes[i] === 13) {
+          rawText += '\n';
+        }
+      }
+      text = rawText;
+    }
+
+    return text.replace(/\s+/g, ' ').trim();
+  }
+
+  async extractTextFromDoc(file) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let text = '';
+      
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] >= 32 && bytes[i] <= 126) {
+          text += String.fromCharCode(bytes[i]);
+        } else if (bytes[i] === 10 || bytes[i] === 13) {
+          text += '\n';
+        }
+      }
+      
+      return text.replace(/\s+/g, ' ').trim();
+    } catch (error) {
+      console.warn('DOC extraction failed:', error);
+      return await file.text();
+    }
+  }
+
 
   /**
    * Extract key insights from comprehensive parsed resume data

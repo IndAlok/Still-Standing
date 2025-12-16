@@ -89,6 +89,7 @@ htmlcov/
 .tox/
 .pytest_cache/
 .coverage.*
+.vercelignore
 
 # OS generated files
 .DS_Store
@@ -285,3 +286,4 @@ DerivedData
 # Security
 *.p12
 *.mobileprovision
+.vercel

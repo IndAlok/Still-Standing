@@ -89,53 +89,88 @@ Be friendly, professional, and concise. Focus on actionable advice.`;
     return prompt;
   }
 
-  async parseResume(resumeText) {
+  async parseResume(resumeText, fileType = 'text/plain') {
     try {
-      const prompt = `Analyze this resume and extract structured information. Return a JSON object with these exact fields:
+      const cleanedText = this.preprocessResumeText(resumeText);
+      
+      if (cleanedText.length < 50) {
+        throw new Error('Resume text is too short to parse');
+      }
+
+      const prompt = `You are an expert resume parser. Analyze this resume and extract ALL information with high accuracy.
+
+CRITICAL INSTRUCTIONS:
+1. Extract every single skill mentioned - technical, soft, languages, tools
+2. Categorize skills accurately: "technical", "soft", "language", "tool", "framework"
+3. Determine skill level from context (e.g., "5 years React" = expert, "familiar with" = beginner)
+4. Extract ALL work experience with complete details
+5. Parse education including degrees, institutions, dates
+6. Find portfolio links (GitHub, LinkedIn, personal site)
+7. Extract certifications, awards, publications
+8. Identify the career level: junior, mid, senior, lead, executive
+
+Return ONLY a valid JSON object with this EXACT structure:
 {
   "personalInfo": {
-    "name": "string",
-    "email": "string",
-    "phone": "string",
-    "location": "string",
-    "linkedin": "string or null",
-    "github": "string or null",
-    "portfolio": "string or null"
+    "name": "Full Name",
+    "email": "email@example.com",
+    "phone": "+1234567890",
+    "location": "City, Country",
+    "linkedin": "https://linkedin.com/in/username",
+    "github": "https://github.com/username",
+    "portfolio": "https://portfolio.com",
+    "summary": "2-3 sentence professional summary"
   },
-  "summary": "brief professional summary in 2-3 sentences",
   "skills": [
-    { "name": "skill name", "category": "technical/soft/language/tool", "level": "beginner/intermediate/advanced/expert" }
+    { "name": "React", "category": "framework", "level": "expert", "yearsOfExperience": 5 },
+    { "name": "Python", "category": "technical", "level": "advanced", "yearsOfExperience": 3 }
   ],
   "experience": [
     {
-      "title": "job title",
-      "company": "company name",
-      "duration": "start - end",
-      "highlights": ["achievement 1", "achievement 2"]
+      "title": "Job Title",
+      "company": "Company Name",
+      "location": "City, Country",
+      "startDate": "Jan 2020",
+      "endDate": "Present",
+      "isCurrent": true,
+      "highlights": ["Achievement 1", "Achievement 2"],
+      "technologies": ["React", "Node.js"]
     }
   ],
   "education": [
     {
-      "degree": "degree name",
-      "institution": "school name",
-      "year": "graduation year"
+      "degree": "Bachelor of Science in Computer Science",
+      "institution": "University Name",
+      "location": "City",
+      "graduationYear": "2020",
+      "gpa": "3.8"
     }
   ],
   "projects": [
     {
-      "name": "project name",
-      "description": "brief description",
-      "technologies": ["tech1", "tech2"]
+      "name": "Project Name",
+      "description": "Brief description",
+      "technologies": ["React", "Firebase"],
+      "url": "https://project-url.com",
+      "highlights": ["Key achievement"]
     }
   ],
-  "certifications": ["cert1", "cert2"],
-  "languages": ["language1", "language2"]
+  "certifications": [
+    { "name": "AWS Solutions Architect", "issuer": "Amazon", "date": "2023" }
+  ],
+  "languages": [
+    { "language": "English", "proficiency": "Native" }
+  ],
+  "careerLevel": "senior",
+  "totalYearsExperience": 7,
+  "keyStrengths": ["Full Stack Development", "Team Leadership"],
+  "industries": ["Technology", "FinTech"]
 }
 
-Resume text:
-${resumeText}
+RESUME TEXT:
+${cleanedText}
 
-Return ONLY the JSON object, no other text.`;
+Return ONLY the JSON object, no markdown, no explanation.`;
 
       const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
         method: 'POST',
@@ -143,27 +178,167 @@ Return ONLY the JSON object, no other text.`;
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 2048,
+            temperature: 0.2,
+            maxOutputTokens: 4096,
+            topP: 0.8,
+            topK: 20
           }
         })
       });
 
-      if (!response.ok) throw new Error(`API error: ${response.status}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
 
       const data = await response.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Could not parse resume response');
+      let parsed = this.extractJsonFromText(text);
       
-      const parsed = JSON.parse(jsonMatch[0]);
-      return { success: true, data: parsed };
+      if (!parsed) {
+        throw new Error('Could not extract valid JSON from AI response');
+      }
+
+      parsed = this.validateAndEnrichParsedData(parsed);
+
+      return { 
+        success: true, 
+        data: parsed,
+        confidence: this.calculateParseConfidence(parsed)
+      };
     } catch (error) {
       console.error('Resume parsing error:', error);
       return { success: false, error: error.message };
     }
   }
+
+  preprocessResumeText(text) {
+    return text
+      .replace(/\r\n/g, '\n')
+      .replace(/\t/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/[^\x20-\x7E\n]/g, '')
+      .trim()
+      .substring(0, 15000);
+  }
+
+  extractJsonFromText(text) {
+    const jsonPatterns = [
+      /```json\s*([\s\S]*?)```/,
+      /```\s*([\s\S]*?)```/,
+      /(\{[\s\S]*\})/
+    ];
+
+    for (const pattern of jsonPatterns) {
+      const match = text.match(pattern);
+      if (match) {
+        try {
+          return JSON.parse(match[1].trim());
+        } catch (e) {
+          continue;
+        }
+      }
+    }
+
+    try {
+      return JSON.parse(text.trim());
+    } catch (e) {
+      return null;
+    }
+  }
+
+  validateAndEnrichParsedData(data) {
+    const validated = {
+      personalInfo: {
+        name: data.personalInfo?.name || 'Unknown',
+        email: data.personalInfo?.email || '',
+        phone: data.personalInfo?.phone || '',
+        location: data.personalInfo?.location || '',
+        linkedin: data.personalInfo?.linkedin || null,
+        github: data.personalInfo?.github || null,
+        portfolio: data.personalInfo?.portfolio || null,
+        summary: data.personalInfo?.summary || ''
+      },
+      skills: (data.skills || []).map(skill => ({
+        name: skill.name || '',
+        category: skill.category || 'technical',
+        level: skill.level || 'intermediate',
+        yearsOfExperience: skill.yearsOfExperience || 0
+      })).filter(s => s.name),
+      experience: (data.experience || []).map(exp => ({
+        title: exp.title || '',
+        company: exp.company || '',
+        location: exp.location || '',
+        startDate: exp.startDate || '',
+        endDate: exp.endDate || '',
+        isCurrent: exp.isCurrent || exp.endDate?.toLowerCase() === 'present',
+        highlights: exp.highlights || [],
+        technologies: exp.technologies || []
+      })).filter(e => e.title || e.company),
+      education: data.education || [],
+      projects: data.projects || [],
+      certifications: data.certifications || [],
+      languages: data.languages || [],
+      careerLevel: data.careerLevel || this.inferCareerLevel(data),
+      totalYearsExperience: data.totalYearsExperience || this.calculateTotalExperience(data.experience),
+      keyStrengths: data.keyStrengths || [],
+      industries: data.industries || []
+    };
+
+    return validated;
+  }
+
+  inferCareerLevel(data) {
+    const years = data.totalYearsExperience || 0;
+    const hasLeadership = (data.experience || []).some(e => 
+      /lead|senior|manager|director|head|principal/i.test(e.title)
+    );
+
+    if (years >= 10 || hasLeadership) return 'senior';
+    if (years >= 5) return 'mid';
+    if (years >= 2) return 'junior';
+    return 'entry';
+  }
+
+  calculateTotalExperience(experience) {
+    if (!experience || experience.length === 0) return 0;
+    
+    let totalMonths = 0;
+    const now = new Date();
+
+    experience.forEach(exp => {
+      try {
+        const startDate = new Date(exp.startDate);
+        const endDate = exp.endDate?.toLowerCase() === 'present' 
+          ? now 
+          : new Date(exp.endDate);
+        
+        if (!isNaN(startDate) && !isNaN(endDate)) {
+          const months = (endDate - startDate) / (1000 * 60 * 60 * 24 * 30);
+          totalMonths += Math.max(0, months);
+        }
+      } catch (e) {}
+    });
+
+    return Math.round(totalMonths / 12);
+  }
+
+  calculateParseConfidence(data) {
+    let score = 0;
+    
+    if (data.personalInfo?.name && data.personalInfo.name !== 'Unknown') score += 15;
+    if (data.personalInfo?.email) score += 10;
+    if (data.skills?.length >= 5) score += 20;
+    if (data.skills?.length >= 10) score += 10;
+    if (data.experience?.length >= 1) score += 20;
+    if (data.experience?.length >= 3) score += 10;
+    if (data.education?.length >= 1) score += 10;
+    if (data.personalInfo?.linkedin || data.personalInfo?.github) score += 5;
+
+    return Math.min(100, score);
+  }
+
 
   async analyzeTeamCompatibility(user1Skills, user2Skills) {
     try {
