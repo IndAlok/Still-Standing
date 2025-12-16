@@ -581,17 +581,23 @@ const UserProfilePage = () => {
     if (userProfile) {
       setCurrentProfile(userProfile);
       
-      // Update profile picture URL if available in userProfile
-      if (userProfile.profilePicture?.url && userProfile.profilePicture.url !== profilePictureURL) {
-        setProfilePictureURL(userProfile.profilePicture.url);
-      } else if (userProfile.photoURL && userProfile.photoURL !== profilePictureURL) {
-        setProfilePictureURL(userProfile.photoURL);
-      }
+      // Update profile picture URL if available in userProfile (only on initial load)
+      const customPicture = userProfile.profilePicture?.url || userProfile.profilePicture;
+      const fallbackPicture = userProfile.photoURL;
+      const pictureToUse = customPicture || fallbackPicture;
       
-      // Load profile picture and resume data
+      if (pictureToUse && !profilePictureURL) {
+        setProfilePictureURL(pictureToUse);
+      }
+    }
+  }, [userProfile]);
+
+  // Load profile assets once on mount
+  useEffect(() => {
+    if (currentUser?.uid && userProfile?.uid) {
       loadProfileAssets();
     }
-  }, [userProfile, profilePictureURL]);
+  }, [currentUser?.uid, userProfile?.uid]);
 
   // Load profile picture and resume data
   const loadProfileAssets = useCallback(async () => {
@@ -600,14 +606,12 @@ const UserProfilePage = () => {
     try {
       setIsProfilePictureLoading(true);
       
-      // Load profile picture
+      // Load profile picture from storage
       const profilePicture = await storageService.getProfilePictureURL(userProfile.uid);
       if (profilePicture) {
         setProfilePictureURL(profilePicture);
-      } else if (userProfile.photoURL) {
-        // Sync Google profile picture if available
-        await handleGoogleProfileSync();
       }
+      // Note: Don't auto-sync Google picture here - let user do it manually
       
       // Load resume data
       const resumeData = await storageService.getUserResume(userProfile.uid);
@@ -626,7 +630,7 @@ const UserProfilePage = () => {
     } finally {
       setIsProfilePictureLoading(false);
     }
-  }, [userProfile]);
+  }, [currentUser?.uid, userProfile?.uid]);
 
   // Handle Google profile picture sync
   const handleGoogleProfileSync = useCallback(async () => {
