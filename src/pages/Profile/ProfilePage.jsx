@@ -864,55 +864,56 @@ const UserProfilePage = () => {
           profileCompleteness: resumeData.profileCompleteness
         });
 
-        // Update user profile with comprehensive resume data (sanitized to remove undefined values)
+        // Build profile fields from parsed resume data
+        const parsedData = resumeData.parsedData;
+        
+        // Extract skills as simple array of names for profile
+        const extractedSkills = (parsedData?.skills || parsedData?.technical_skills || [])
+          .map(s => typeof s === 'string' ? s : s.name)
+          .filter(Boolean);
+        
+        // Build profile update with sanitization
         const profileUpdateData = sanitizeForFirestore({
+          // User identity from resume
+          username: parsedData?.full_name || parsedData?.contact_info?.name || null,
+          bio: parsedData?.summary || null,
+          domain: parsedData?.domain || null,
+          location: parsedData?.contact_info?.location || null,
+          
+          // Contact links
+          github: parsedData?.contact_info?.github || null,
+          linkedin: parsedData?.contact_info?.linkedin || null,
+          portfolio: parsedData?.contact_info?.website || null,
+          
+          // Professional data
+          skills: extractedSkills.slice(0, 20), // Limit to top 20
+          experience: parsedData?.career_level || null,
+          
+          // Resume reference
           resume: {
             fileName: resumeData.fileName || null,
             resumeId: resumeData.id || null,
-            uploadDate: resumeData.uploadedAt || new Date(),
-            parseStatus: resumeData.parseStatus || 'completed',
-            parseMethod: resumeData.parseMethod || 'ai',
-            parsedData: resumeData.parsedData || null,
+            uploadDate: new Date(),
+            parseStatus: 'completed',
             insights: insights || null,
-            fileSize: resumeData.fileSize || null,
-            fileType: resumeData.fileType || null,
-            storageMethod: 'comprehensive-ai-collection-with-profile',
-            completenessScore: insights?.completenessScore || 0,
-            profilePopulated: resumeData.profilePopulated || false,
-            profileCompleteness: resumeData.profileCompleteness || 0
+            skillsExtracted: extractedSkills.length,
+            completenessScore: insights?.completenessScore || resumeData.profileCompleteness || 0
           }
         });
 
-        // If profile was automatically populated, merge the populated data
-        if (resumeData.profilePopulated && resumeData.profileData) {
-          
-          
-          // Merge populated profile data with current profile
-          const populatedProfile = resumeData.profileData;
-          const mergedProfile = { ...profileUpdateData, ...populatedProfile };
-          
-          await updateUserProfile(mergedProfile);
-          
-          // Refresh the auth context to show updated profile
-          if (refreshUserProfile) {
-            await refreshUserProfile();
-          }
-          
-          // Show enhanced success message
-          const skillsCount = insights?.technicalSkillsCount || 0;
-          const experience = insights?.totalExperience || 0;
-          
-          alert(`Resume uploaded successfully!\n\n${skillsCount} skills and ${experience} years of experience detected.\n\nYour profile has been updated with the extracted information.`);
-        } else {
-          // Standard profile update without auto-population
-          await updateUserProfile(profileUpdateData);
-          
-          const skillsCount = insights?.technicalSkillsCount || 0;
-          const experience = insights?.totalExperience || 0;
-          
-          alert(`Resume uploaded successfully!\n\nFound ${skillsCount} skills and ${experience} years of experience.`);
+        // Update user profile with extracted data
+        await updateUserProfile(profileUpdateData);
+        
+        // Refresh the auth context to show updated profile
+        if (refreshUserProfile) {
+          await refreshUserProfile();
         }
-
+        
+        // Show success message
+        const skillsCount = extractedSkills.length;
+        const experience = insights?.totalExperience || 0;
+        
+        alert(`Resume uploaded and profile updated!\n\n${skillsCount} skills extracted.\n${experience} years of experience detected.\n\nYour profile has been automatically updated.`);
         
       } else {
         throw new Error('Upload failed: ' + (result.parseError || 'Unknown error'));
