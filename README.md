@@ -1,188 +1,131 @@
-# CrewConnect
+# 🚀 CrewConnect
 
-CrewConnect is an AI-powered team matchmaking and collaboration platform that uses Google's Gemini AI to intelligently match teammates, analyze skills, and build optimal project teams.
+<div align="center">
 
-## Key Features
+[![React](https://img.shields.io/badge/React-18.0-61dafb?style=for-the-badge&logo=react)](https://reactjs.org/)
+[![Firebase](https://img.shields.io/badge/Firebase-V10-ffca28?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
+[![Gemini AI](https://img.shields.io/badge/Google%20Gemini-1.5%20Flash-4285f4?style=for-the-badge&logo=google)](https://deepmind.google/technologies/gemini/)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.0-38bdf8?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-### AI-Powered Intelligence
-- **CrewBot Assistant** - Context-aware AI chatbot available in every crew
-- **Smart Matching** - ML-powered compatibility scoring between users
-- **Resume Parser** - Automatically extract skills from uploaded resumes using Gemini AI
-- **Conversation Summarization** - AI-generated summaries of team discussions
-- **Skill Recommendations** - Personalized learning path suggestions
+**The AI-Powered Collaborative Ecosystem for High-Performance Teams**
 
-### Intelligent Team Building
-- **Team Builder Wizard** - 3-step AI-guided team composition
-- **Compatibility Scoring** - Match percentage based on complementary skills
-- **Skill Gap Analysis** - Identify missing capabilities in your team
-- **Optimal Team Suggestions** - AI recommends the best team composition
+[View Demo](#) · [Report Bug](https://github.com/IndAlok/Still-Standing/issues) · [Request Feature](https://github.com/IndAlok/Still-Standing/issues)
 
-### Advanced Profile System
-- **Skill Management** - Add, remove, and categorize skills with proficiency levels
-- **Skill Endorsements** - Get endorsed by teammates for credibility
-- **Portfolio Integration** - Link GitHub, LinkedIn, and personal websites
-- **AI Resume Import** - Upload resume and auto-populate skills
+</div>
 
-### Real-Time Collaboration
-- **Instant Messaging** - Real-time group chat with Firebase Firestore
-- **Message Reactions** - React to messages
-- **Threaded Replies** - Organized conversation threads
-- **AI Summaries** - One-click conversation summaries
+---
 
-### Group Management
-- **Public/Private Groups** - Create teams with visibility settings
-- **Role-Based Access** - Owner, admin, and member permissions
-- **Invitation System** - Invite by email with custom messages
-- **Join Requests** - Approve/reject membership requests
+## Overview
 
-## Tech Stack
+**CrewConnect** redefines how teams form and collaborate. Unlike traditional group chats, it leverages **Generative AI (Google Gemini)** to intelligently build teams, analyze skill gaps, and facilitate high-performance collaboration.
 
-| Category | Technologies |
-|----------|-------------|
-| **Frontend** | React 18, TailwindCSS, Framer Motion |
-| **Backend** | Firebase (Firestore, Auth, Storage) |
-| **AI/ML** | Google Gemini 1.5 Flash API |
-| **Icons** | Lucide React |
-| **Routing** | React Router DOM v6 |
+Designed as a **production-grade application**, it solves the "cold start" problem in project collaboration: *How do you finding the right people with the right skills at the right time?*
+
+> **"It's not just a chat app; it's an intelligent team orchestration platform."**
+
+## Key Advanced Features
+
+### Intelligent Team Orchestration
+*   **AI-Powered Team Builder**: A sophisticated wizard that intakes project requirements and uses Gemini to recommend the optimal combination of available users.
+*   **Semantic Skill Matching**: Goes beyond keyword matching. The system analyzes the *nuance* of skills (e.g., "React" implies "JavaScript" proficiency) to calculate a weighted **Compatibility Score**.
+*   **Gap Analysis Engine**: Automatically identifies missing critical skills in a proposed team and suggests candidates who fill those specific voids.
+
+### Smart Profile & Resume System
+*   **One-Click Resume Parsing**: Upload a PDF/Docx, and the system extracts personal info, experience, and categorizes skills into Technical, Soft, and Business domains using NLP.
+*   **Skill Endorsement Protocol**: A trust-based system where teammates verify each other's expertise, adding a layer of social credibility.
+*   **Dynamic Portfolio Aggregation**: Centralizes GitHub, LinkedIn, and personal portfolio links.
+
+### "CrewBot" - The Context-Aware Assistant
+Every team gets a dedicated AI assistant that:
+*   Maintains conversation context.
+*   Summarizes long chat threads into actionable bullet points.
+*   Provides technical architectural advice based on the team's skillset.
+
+## Technical Architecture
+
+### Tech Stack
+
+| Domain | Technology | Rationale |
+| :--- | :--- | :--- |
+| **Frontend** | React 18, Vite | High-performance SPA rendering with concurrent features. |
+| **Styling** | TailwindCSS + Framer Motion | Utility-first CSS for maintainability; hardware-accelerated animations. |
+| **Backend / DB** | Firebase (Firestore, Auth, Storage) | Serverless scalability; native real-time websocket capabilities. |
+| **AI Model** | Google Gemini 1.5 Flash | Low latency, high throughput token generation for real-time interactions. |
+| **State Mgmt** | React Context API | Global state for Auth and Notifications without Redux boilerplate. |
+
+### Database Schema (Simplified)
+
+The application uses a NoSQL document-oriented structure optimized for read-heavy operations:
+
+```javascript
+// User Document Structure
+users/{userId} {
+  displayName: String,
+  skills: [{ name, level, category, verified }], // Structured for AI analysis
+  matches: [{ userId, score, timestamp }],       // Pre-computed edge caching
+  availability: { status, hours }
+}
+
+// AI Context Storage
+ai_conversations/{crewId} {
+  context_window: String, // Rolling window of team context
+  messages: Array         // History for the LLM
+}
+```
 
 ## Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- Firebase Project with Firestore, Auth, and Storage enabled
-- Gemini API Key
+*   Node.js v18+
+*   Firebase Project (Blaze Plan not required for basic features)
+*   Google Gemini API Key
 
 ### Installation
 
-```bash
-git clone https://github.com/Himarghya/Still-Standing.git
-cd Still-Standing
-npm install
-```
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/IndAlok/Still-Standing.git
+    cd Still-Standing
+    ```
 
-### Configuration
+2.  **Install Production Dependencies**
+    ```bash
+    npm install
+    ```
 
-Create a `.env` file in the root directory:
+3.  **Environment Configuration**
+    Create a `.env` file in the root directory:
+    ```env
+    REACT_APP_FIREBASE_API_KEY=your_key
+    REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+    REACT_APP_FIREBASE_PROJECT_ID=your_id
+    REACT_APP_GEMINI_API_KEY=your_gemini_key
+    ```
 
-```env
-# Firebase Configuration
-REACT_APP_FIREBASE_API_KEY=your_api_key
-REACT_APP_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-REACT_APP_FIREBASE_PROJECT_ID=your_project_id
-REACT_APP_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-REACT_APP_FIREBASE_APP_ID=your_app_id
-REACT_APP_FIREBASE_MEASUREMENT_ID=G-XXXXXXXXXX
+4.  **Ignite Development Server**
+    ```bash
+    npm start
+    ```
 
-# Gemini AI
-REACT_APP_GEMINI_API_KEY=your_gemini_api_key
-```
+## Security & Performance
 
-### Run Development Server
+*   **Route Protection**: Higher-Order Components (HOCs) ensure authorized access.
+*   **Sanitization**: All user inputs and AI outputs are sanitized to prevent XSS.
+*   **Code Splitting**: Dynamic imports used for heavy components (e.g., Team Builder) to optimize LCP (Largest Contentful Paint).
 
-```bash
-npm start
-```
+## Roadmap
 
-Access at `http://localhost:3000`
+*   [ ] **Mobile Native**: React Native port for iOS/Android.
+*   [ ] **Video Integration**: WebRTC integration for in-app team standups.
+*   [ ] **GitHub Integration**: Auto-sync contributions to skill scores.
 
-## Project Structure
+---
 
-```
-src/
-├── components/
-│   ├── AIChat/           # CrewBot AI assistant
-│   ├── MatchCard/        # User compatibility cards
-│   ├── SkillBadge/       # Skill display components
-│   └── ...
-├── contexts/
-│   ├── AuthContext.jsx   # Authentication state
-│   └── NotificationContext.jsx
-├── pages/
-│   ├── Chat/             # Real-time messaging
-│   ├── Dashboard/        # User dashboard
-│   ├── Discover/         # Find groups/users
-│   ├── Groups/           # Group management
-│   ├── Profile/          # User profile with skills
-│   ├── TeamBuilder/      # AI team composition
-│   └── ...
-└── services/
-    ├── geminiService.js  # Gemini AI integration
-    ├── matchingService.js # Compatibility algorithms
-    ├── skillService.js   # Skill management
-    └── crewConnectService.js # Firebase operations
-```
+<div align="center">
 
-## AI Features Deep Dive
+**Developed with ❤️ by IndAlok**
 
-### CrewBot Assistant
-The AI assistant uses Gemini 1.5 Flash with conversation history and context awareness:
-- Understands team composition and member skills
-- Provides personalized recommendations
-- Answers platform-related questions
-- Suggests collaboration strategies
+*Open for advanced engineering roles.*
 
-### Smart Matching Algorithm
-The compatibility scoring considers:
-- **Complementary Skills** (50%) - Skills that complement each other
-- **Skill Overlap** (30%) - Common ground for collaboration
-- **Category Diversity** (20%) - Range of skill categories covered
-
-### Resume Parsing
-Uses Gemini to extract:
-- Personal information (name, email, links)
-- Technical and soft skills with proficiency levels
-- Work experience and education
-- Projects and certifications
-
-## Security
-
-- Firebase Authentication with Google Sign-In
-- Firestore Security Rules for data protection
-- Environment variables for sensitive keys
-- XSS protection headers in Vercel deployment
-
-## Deployment
-
-### Vercel (Recommended)
-
-```bash
-npm i -g vercel
-vercel
-```
-
-Add environment variables in Vercel Dashboard -> Settings -> Environment Variables.
-
-The included `vercel.json` handles SPA routing and security headers.
-
-## Database Schema
-
-```
-/users/{userId}
-├── displayName, email, bio, location
-├── skills: [{ name, level, category, endorsements[] }]
-├── portfolio: { github, linkedin, website }
-└── resumeData: { ... }
-
-/groups/{groupId}
-├── name, description, isPublic
-├── createdBy, createdAt
-└── memberCount
-
-/messages/{messageId}
-├── crewId, content, senderId
-├── reactions: { emoji: [userIds] }
-└── thread: [{ content, senderId }]
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
+</div>
