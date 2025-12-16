@@ -126,6 +126,4 @@ ai_conversations/{crewId} {
 
 **Developed with ❤️ by IndAlok**
 
-*Open for advanced engineering roles.*
-
 </div>
