@@ -1,6 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 class ResumeParserService {
   async extractTextFromPdf(file) {
@@ -19,7 +19,13 @@ class ResumeParserService {
         textParts.push(pageText);
       }
       
-      return textParts.join('\n\n').trim();
+      const extractedText = textParts.join('\n\n').trim();
+      
+      if (extractedText.length > 50) {
+        return extractedText;
+      }
+      
+      return this.extractTextFallback(file);
     } catch (error) {
       return this.extractTextFallback(file);
     }

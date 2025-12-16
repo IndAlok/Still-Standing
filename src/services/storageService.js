@@ -20,6 +20,21 @@ class StorageService {
     this.TEMP_PATH = 'temp';
   }
 
+  sanitizeForFirestore(obj) {
+    if (obj === null || obj === undefined) return null;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizeForFirestore(item)).filter(item => item !== undefined);
+    }
+    const sanitized = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        sanitized[key] = this.sanitizeForFirestore(value);
+      }
+    }
+    return sanitized;
+  }
+
   /**
    * Get current user ID
    */
@@ -244,16 +259,11 @@ class StorageService {
         }
       };
 
-      // Store resume document in separate 'resumes' collection
-      console.log('💾 Saving resume to Firestore collection:', {
-        collection: 'resumes',
-        documentId: resumeDocId,
-        userId: currentUserId,
-        dataSize: JSON.stringify(resumeData).length
-      });
+      // Sanitize data before saving to Firestore (removes undefined values)
+      const sanitizedResumeData = this.sanitizeForFirestore(resumeData);
       
       try {
-        await setDoc(doc(db, 'resumes', resumeDocId), resumeData);
+        await setDoc(doc(db, 'resumes', resumeDocId), sanitizedResumeData);
         
       } catch (firestoreError) {
         
